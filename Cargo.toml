@@ -1,0 +1,5 @@
+[package]
+
+name = "negative"
+version = "0.0.1"
+authors = ["Vadim Zaytsev <zaic101@gmail.com>"]
