@@ -1,57 +1,59 @@
-use std::vec::Vec;
 use std::collections::tree_map::TreeMap;
+use std::rc::Rc;
+use std::vec::Vec;
 
 
 
-struct VectorElement {
-    history: TreeMap<i64, Option<int>>,
+struct VectorElement<T> {
+    history: TreeMap<i64, Rc<Option<T>>>,
 }
 
-impl VectorElement {
-    pub fn new() -> VectorElement {
+impl<T> VectorElement<T> {
+    pub fn new() -> VectorElement<T> {
         let mut map = TreeMap::new();
-        map.insert(0, None);
+        map.insert(0, Rc::new(None));
         VectorElement{history: map}
     }
 
-    pub fn value(&self, revision: i64) -> Option<int> {
-        // TODO improve performance
+    pub fn value(&self, revision: i64) -> Rc<Option<T>> {
+        // TODO improve performance usinb binary search
+        //   common algo: use upper_bound() and move iterator by one element back
+        //   but Iterator in rust doesn't have methods suck back() or next_rev()
         let mut iter = self.history.rev_iter();
         loop {
-            let (key, val) = match iter.next()
-            {
-                Some((key, val)) => (*key, *val),
-                None       => (0i64, Some(0)),
+            let (key, val) = match iter.next() {
+                Some((key, val)) => (*key, (*val).clone()),
+                None             => (0i64, Rc::new(None)),
             };
             if key <= revision {
-                return val;
+                return val.clone(); // TODO remove clone?
             }
         }
     }
 
-    pub fn add_value(&mut self, revision: i64, value: Option<int>) {
-        self.history.insert(revision, value);
+    pub fn add_value(&mut self, revision: i64, value: Option<T>) {
+        self.history.insert(revision, Rc::new(value));
     }
 }
 
 #[test]
 fn element_init() {
-    let mut node = VectorElement::new();
-    assert_eq!(node.value(0i64), None);
-    assert_eq!(node.value(1i64), None);
+    let mut node = VectorElement::<int>::new();
+    assert_eq!(*node.value(0i64), None);
+    assert_eq!(*node.value(1i64), None);
     node.add_value(1i64, Some(1807));
-    assert_eq!(node.value(0i64), None);
-    assert_eq!(node.value(1i64), Some(1807));
+    assert_eq!(*node.value(0i64), None);
+    assert_eq!(*node.value(1i64), Some(1807));
 
-    let mut node2 = VectorElement::new();
+    let mut node2 = VectorElement::<int>::new();
     node2.add_value(1, Some(-10));
     node2.add_value(10, Some(12));
-    assert_eq!(node2.value(0), None);
-    assert_eq!(node2.value(1), Some(-10));
-    assert_eq!(node2.value(2), Some(-10));
-    assert_eq!(node2.value(9), Some(-10));
-    assert_eq!(node2.value(10), Some(12));
-    assert_eq!(node2.value(11), Some(12));
+    assert_eq!(*node2.value(0), None);
+    assert_eq!(*node2.value(1), Some(-10));
+    assert_eq!(*node2.value(2), Some(-10));
+    assert_eq!(*node2.value(9), Some(-10));
+    assert_eq!(*node2.value(10), Some(12));
+    assert_eq!(*node2.value(11), Some(12));
 }
 
 /*
@@ -74,7 +76,7 @@ fn element_modify() {
 
 struct VectorRevision {
     rev: i64,
-    ary: Vec<int>,
+    ary: Vec<Rc<int>>,
 }
 
 impl VectorRevision {
@@ -101,13 +103,13 @@ impl VectorRevision {
     }
 
     pub fn get(&self, id: uint) -> int {
-        self.ary[id]
+        *self.ary[id]
     }
 }
 
 impl Index<uint, int> for VectorRevision {
     fn index(&self, id: &uint) -> &int {
-        &self.ary[*id]
+        &*self.ary[*id]
     }
 }
 
@@ -116,7 +118,7 @@ impl Index<uint, int> for VectorRevision {
 struct PersVector {
     rev: i64,
 
-    ary: Vec<VectorElement>,
+    ary: Vec<VectorElement<int>>,
     len: uint,
 }
 
@@ -127,11 +129,11 @@ impl PersVector {
 
     pub fn get_by_revision(&self, revision : i64) -> VectorRevision {
         assert!(revision <= self.rev);
-        let mut result_vector = Vec::new();
+        let mut result_vector = Vec::<Rc<int>>::new();
         // TODO use iterator ;)
         for i in range(0u, self.ary.len()) {
-            match self.ary[i].value(revision) {
-                Some(value) => result_vector.push(value),
+            match *self.ary[i].value(revision) {
+                Some(value) => result_vector.push(Rc::new(value)),
                 None        => break,
             };
         }
