@@ -1,6 +1,7 @@
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
+use std::num::abs_sub;
 
 
 
@@ -56,20 +57,28 @@ fn element_init() {
     assert_eq!(*node2.value(11), Some(12));
 }
 
-/*
 #[test]
-fn element_modify() {
-    let mut node = VectorElement::new();
-    node.add_value(1, "hello");
-    node.add_value(10, "rust");
-    assert_eq!(node.value(0), None);
-    assert_eq!(node.value(1), "hello");
-    assert_eq!(node.value(2), "hello");
-    assert_eq!(node.value(9), "hello");
-    assert_eq!(node.value(10), "rust");
-    assert_eq!(node.value(11), "rust");
+fn element_generic() {
+    let mut node_str = VectorElement::<&str>::new();
+    node_str.add_value(1, Some("hello"));
+    node_str.add_value(10, Some("rust"));
+    assert_eq!(*node_str.value(0), None);
+    assert_eq!(*node_str.value(1), Some("hello"));
+    assert_eq!(*node_str.value(2), Some("hello"));
+    assert_eq!(*node_str.value(9), Some("hello"));
+    assert_eq!(*node_str.value(10), Some("rust"));
+    assert_eq!(*node_str.value(11), Some("rust"));
+
+    let mut node_flt = VectorElement::<f32>::new();
+    node_flt.add_value(12, Some(-1.0));
+    node_flt.add_value(13, Some(1e-7));
+    node_flt.add_value(14, Some(1.3333333));
+    assert_eq!(*node_flt.value(11), None); // TODO check with abs and eps
+    assert!(abs_sub((*node_flt.value(12)).unwrap_or(10.0), -1.0) < 1e-8);
+    assert!(abs_sub((*node_flt.value(13)).unwrap_or(10.0), 1e-7) < 1e-8);
+    assert!(abs_sub((*node_flt.value(14)).unwrap_or(10.0), 1.3333333) < 1e-8);
+    assert!(abs_sub((*node_flt.value(15)).unwrap_or(10.0), 1.3333333) < 1e-8);
 }
-*/
 
 
 
@@ -189,4 +198,7 @@ fn vec_test() {
     assert_eq!(vec_after[0], 1807);
     assert_eq!(vec_after[1], 1008);
     assert_eq!(vec_after.len(), 2);
+
+    let immut_val = vec_middle[0];
+    assert_eq!(immut_val, 1807);
 }
