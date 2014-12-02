@@ -1,6 +1,3 @@
-//extern crate VectorElement;
-//extern crate VectorRevision;
-
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
