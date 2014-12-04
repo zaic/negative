@@ -1,48 +1,127 @@
-use std::rc::Rc;
-
-pub struct Kuchevo {
-    x: int,
-    priority: int,
-
-    lchild: Option<Kuchevo>,
-    rchild: Option<Kuchevo>,
+//#[deriving(Eq, Show)]
+#[deriving(Show)]
+pub enum Kuchevo {
+    Nil,
+    Node(int          /* key      */,
+         int          /* priority */,
+         Box<Kuchevo> /* left     */,
+         Box<Kuchevo> /* right    */,)
 }
+
+/*
+impl PartialEq for Kuchevo {
+    fn eq(&self, other: &Kuchevo) -> bool {
+        match (self, *other) {
+            (&Kuchevo(Kuchevo::Nil), Kuchevo::Nil) => true,
+            _                            => false,
+        }
+    }
+}
+*/
 
 impl Kuchevo {
     pub fn new() -> Kuchevo {
-        Kuchevo{x: 0, priority: 0, lchild: None, rchild: None}
+        //Kuchevo{x: 0, priority: 0, lchild: Rc::new(None), rchild: Rc::new(None)}
+        Kuchevo::Node(0, 0, box Kuchevo::Nil, box Kuchevo::Nil)
     }
 
-    pub fn merge(oleft: &Option<Kuchevo>, oright: &Option<Kuchevo>) -> Kuchevo {
-        assert!(oleft != None || oright != None);
+    pub fn merge(left: Kuchevo, right: Kuchevo) -> Kuchevo {
+        match (left, right) {
+            // both nodes are Nil -- impossible
+            (Kuchevo::Nil, Kuchevo::Nil) =>
+                panic!("WTF?!"),
 
-        let left  = oleft.unwrap();
-        let right = oright.unwrap();
+            // right is Nil, return left
+            (Kuchevo::Node(l_key, l_priortiy, l_child_left, l_child_right), Kuchevo::Nil) =>
+                Kuchevo::Node(l_key, l_priortiy, l_child_left, l_child_right),
 
-        if oleft  == None { return right; }
-        if oright == None { return left;  }
+            // left is Nil, return right
+            (Kuchevo::Nil, Kuchevo::Node(r_key, r_priortiy, r_child_left, r_child_right)) =>
+                Kuchevo::Node(r_key, r_priortiy, r_child_left, r_child_right),
 
-        assert!(left.priority != right.priority)
-        if left.priority > right.priority {
-            /*
-             *       L     >     R      =>        L
-             *      / \         / \     =>       / \
-             *     /   \       /   \    =>      /   \
-             *   L.L   L.R      ...     =>    L.L  merge(L.R, R)
-             */
-            Kuchevo{x: left.x,
-                    priority: left.priority,
-                    lchild: left.lchild,
-                    rchild: Kuchevo::merge(left.rchild, oright)}
-        } else {
-            
+            // merging
+            (Kuchevo::Node(l_key, l_priortiy, l_child_left, l_child_right),
+             Kuchevo::Node(r_key, r_priortiy, r_child_left, r_child_right)) =>
+                /*
+                 *       L     >     R      =>        L
+                 *      / \         / \     =>       / \
+                 *     /   \       /   \    =>      /   \
+                 *   L.L   L.R      ...     =>    L.L  merge(L.R, R)
+                 */
+                if l_priortiy > r_priortiy {
+                    Kuchevo::Node(l_key,
+                                  l_priortiy,
+                                  l_child_left,
+                                  box Kuchevo::merge(*l_child_right,
+                                                     Kuchevo::Node(r_key, r_priortiy, r_child_left, r_child_right)))
+
+                /*
+                 *       L     <     R      =>             R
+                 *      / \         / \     =>            / \
+                 *     /   \       /   \    =>           /   \
+                 *      ...      R.L   R.R  => merge(L, R.L) R.R
+                 */
+                } else if l_priortiy < r_priortiy {
+                    Kuchevo::Node(r_key,
+                                  r_priortiy,
+                                  box Kuchevo::merge(*r_child_left,
+                                                     Kuchevo::Node(l_key, l_priortiy, l_child_left, l_child_right)),
+                                  r_child_right)
+
+                } else {
+                    panic!("Equal priority")
+                }
         }
-
-        Kuchevo::new()
     }
 
-    pub fn split(&self, key: int) -> (Option<Kuchevo>, Option<Kuchevo>) {
-        
+    // return trees:
+    // [-inf; mid) and [mid; +inf)
+    pub fn split(hren: Kuchevo, mid: int) -> (Kuchevo, Kuchevo) {
+        match hren {
+            Kuchevo::Nil =>
+                (Kuchevo::Nil, Kuchevo::Nil),
+
+            Kuchevo::Node(key, priority, left, right) =>
+                if key < mid {
+                    let (sp_left, sp_right) = 
+                        if right.is_nil() {
+                            (Kuchevo::Nil, Kuchevo::Nil)
+                        } else {
+                            //right.split(key)
+                            Kuchevo::split(*right, key)
+                        };
+
+                    let res_left  = Kuchevo::Node(key,
+                                                  priority,
+                                                  left,
+                                                  box sp_left);
+                    let res_right = sp_right;
+                    (res_left, res_right)
+
+                } else {
+                    let (sp_left, sp_right) = 
+                        if left.is_nil() {
+                            (Kuchevo::Nil, Kuchevo::Nil)
+                        } else {
+                            //left.split(key)
+                            Kuchevo::split(*left, key)
+                        };
+
+                    let res_left  = sp_left;
+                    let res_right = Kuchevo::Node(key,
+                                                  priority,
+                                                  box sp_right,
+                                                  right);
+                    (res_left, res_right)
+                }
+        }
+    }
+
+    pub fn is_nil(&self) -> bool {
+        match *self {
+            Kuchevo::Nil => true,
+            _            => false,
+        }
     }
 }
 
