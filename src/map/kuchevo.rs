@@ -20,9 +20,12 @@ impl PartialEq for Kuchevo {
 */
 
 impl Kuchevo {
-    pub fn new() -> Kuchevo {
-        //Kuchevo{x: 0, priority: 0, lchild: Rc::new(None), rchild: Rc::new(None)}
-        Kuchevo::Node(0, 0, box Kuchevo::Nil, box Kuchevo::Nil)
+    pub fn new_empty() -> Box<Kuchevo> {
+        box Kuchevo::Node(0, 0, box Kuchevo::Nil, box Kuchevo::Nil)
+    }
+
+    pub fn new(val: int, priority: int, left: Box<Kuchevo>, right: Box<Kuchevo>) -> Kuchevo {
+        Kuchevo::Node(val, priority, left, right)
     }
 
     pub fn merge(left: Kuchevo, right: Kuchevo) -> Kuchevo {
@@ -61,15 +64,13 @@ impl Kuchevo {
                  *     /   \       /   \    =>           /   \
                  *      ...      R.L   R.R  => merge(L, R.L) R.R
                  */
-                } else if l_priortiy < r_priortiy {
+                } else {
                     Kuchevo::Node(r_key,
                                   r_priortiy,
                                   box Kuchevo::merge(*r_child_left,
                                                      Kuchevo::Node(l_key, l_priortiy, l_child_left, l_child_right)),
                                   r_child_right)
 
-                } else {
-                    panic!("Equal priority")
                 }
         }
     }
@@ -127,6 +128,27 @@ impl Kuchevo {
 
 #[test]
 fn kuchest() {
-    let mut a = Kuchevo::new();
+    let a = box Kuchevo::new(0, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
+    let b = box Kuchevo::new(3, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
+    let c = box Kuchevo::new(2, 4, a, b);
+    let d = box Kuchevo::new(5, 1, Kuchevo::new_empty(), Kuchevo::new_empty());
+    let e = box Kuchevo::new(6, 2, d, Kuchevo::new_empty());
+    let f = box Kuchevo::new(4, 6, c, e);
 
+    let g = box Kuchevo::new(11, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
+    let h = box Kuchevo::new(9, 7, Kuchevo::new_empty(), g);
+    let i = box Kuchevo::new(14, 4, Kuchevo::new_empty(), Kuchevo::new_empty());
+    let j = box Kuchevo::new(13, 8, h, i);
+
+    let k = box Kuchevo::new(7, 10, f, j);
+    println!("{}", k);
+
+    let (l, m) = Kuchevo::split(*k, 10);
+    println!("{}", l);
+    println!("{}", m);
+
+    let n = box Kuchevo::merge(m, l);
+    println!("{}", n);
+
+    //assert!(false);
 }
