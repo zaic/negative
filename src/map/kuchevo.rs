@@ -1,14 +1,13 @@
-#[allow(dead_code)]
 use std::rc::Rc;
+use std::default::Default;
 
-//#[deriving(Eq, Show)]
 #[deriving(Show)]
-pub enum Kuchevo {
+pub enum Kuchevo<T> {
     Nil,
-    Node(int          /* key      */,
-         int          /* priority */,
-         Rc<Kuchevo>  /* left     */,
-         Rc<Kuchevo>  /* right    */,)
+    Node(T               /* key      */,
+         int             /* priority */,
+         Rc<Kuchevo<T>>  /* left     */,
+         Rc<Kuchevo<T>>  /* right    */,)
 }
 
 /*
@@ -22,16 +21,17 @@ impl PartialEq for Kuchevo {
 }
 */
 
-impl Kuchevo {
-    pub fn new_empty() -> Rc<Kuchevo> {
-        Rc::new( Kuchevo::Node(0, 0, Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)))
+// TODO: remove Default
+impl<T: Default + Ord + Clone> Kuchevo<T> {
+    pub fn new_empty() -> Rc<Kuchevo<T>> {
+        Rc::new( Kuchevo::Node(Default::default(), 0, Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)))
     }
 
-    pub fn new(val: int, priority: int, left: Rc<Kuchevo>, right: Rc<Kuchevo>) -> Rc<Kuchevo> {
-        Rc::new(Kuchevo::Node(val, priority, left, right))
+    pub fn new(val: T, priority: int, left: Rc<Kuchevo<T>>, right: Rc<Kuchevo<T>>) -> Rc<Kuchevo<T>> {
+        Rc::new(Kuchevo::Node(val, priority, left.clone(), right.clone()))
     }
 
-    pub fn merge(left: Rc<Kuchevo>, right: Rc<Kuchevo>) -> Rc<Kuchevo> {
+    pub fn merge(left: Rc<Kuchevo<T>>, right: Rc<Kuchevo<T>>) -> Rc<Kuchevo<T>> {
         match (left.deref(), right.deref()) {
             // both nodes are Nil -- impossible
             (&Kuchevo::Nil, &Kuchevo::Nil) =>
@@ -48,8 +48,8 @@ impl Kuchevo {
                 //Rc::new(Kuchevo::Node(r_key, r_priortiy, r_child_left, r_child_right)),
 
             // merging
-            (&Kuchevo::Node(l_key, l_priortiy, ref l_child_left, ref l_child_right),
-             &Kuchevo::Node(r_key, r_priortiy, ref r_child_left, ref r_child_right)) =>
+            (&Kuchevo::Node(ref l_key, l_priortiy, ref l_child_left, ref l_child_right),
+             &Kuchevo::Node(ref r_key, r_priortiy, ref r_child_left, ref r_child_right)) =>
                 /*
                  *       L     >     R      =>        L
                  *      / \         / \     =>       / \
@@ -57,7 +57,7 @@ impl Kuchevo {
                  *   L.L   L.R      ...     =>    L.L  merge(L.R, R)
                  */
                 if l_priortiy > r_priortiy {
-                    Rc::new(Kuchevo::Node(l_key,
+                    Rc::new(Kuchevo::Node(l_key.clone(),
                                           l_priortiy,
                                           l_child_left.clone(),
                                           Kuchevo::merge(l_child_right.clone(),
@@ -70,7 +70,7 @@ impl Kuchevo {
                  *      ...      R.L   R.R  => merge(L, R.L) R.R
                  */
                 } else {
-                    Rc::new(Kuchevo::Node(r_key,
+                    Rc::new(Kuchevo::Node(r_key.clone(),
                                           r_priortiy,
                                           Kuchevo::merge(r_child_left.clone(),
                                                          left.clone()),
@@ -82,13 +82,13 @@ impl Kuchevo {
 
     // return trees:
     // [-inf; mid) and [mid; +inf)
-    pub fn split(&self, mid: int) -> (Rc<Kuchevo>, Rc<Kuchevo>) {
+    pub fn split(&self, mid: &T) -> (Rc<Kuchevo<T>>, Rc<Kuchevo<T>>) {
         match self {
             &Kuchevo::Nil =>
                 (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)),
 
-            &Kuchevo::Node(key, priority, ref left, ref right) =>
-                if key < mid {
+            &Kuchevo::Node(ref key, priority, ref left, ref right) =>
+                if *key < *mid {
                     let (sp_left, sp_right) = 
                         if right.is_nil() {
                             (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil))
@@ -96,7 +96,7 @@ impl Kuchevo {
                             right.split(key)
                         };
 
-                    let res_left  = Rc::new(Kuchevo::Node(key,
+                    let res_left  = Rc::new(Kuchevo::Node(key.clone(),
                                                           priority,
                                                           left.clone(),
                                                           sp_left));
@@ -112,7 +112,7 @@ impl Kuchevo {
                         };
 
                     let res_left  = sp_left;
-                    let res_right = Rc::new(Kuchevo::Node(key,
+                    let res_right = Rc::new(Kuchevo::Node(key.clone(),
                                                           priority,
                                                           sp_right,
                                                           right.clone()));
@@ -131,7 +131,7 @@ impl Kuchevo {
 
 #[test]
 fn kuchest() {
-    let a = Kuchevo::new(0, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
+    let a = Kuchevo::<int>::new(0, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let b = Kuchevo::new(3, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let c = Kuchevo::new(2, 4, a.clone(), b.clone());
     let ccc = Kuchevo::new(2, 4, a.clone(), b.clone());
@@ -148,7 +148,7 @@ fn kuchest() {
     let k = Kuchevo::new(7, 10, f.clone(), j.clone());
     println!("{}", k);
 
-    let (l, m) = k.split(10); // Kuchevo::split(*k, 10);
+    let (l, m) = k.split(&10); // Kuchevo::split(*k, 10);
     println!("{}", l);
     println!("{}", m);
 
