@@ -7,7 +7,7 @@ use vector::vector_revision::VectorRevision;
 
 
 
-struct PersVector {
+pub struct PersVector {
     rev: i64,
 
     ary: Vec<VectorElement<int>>,
@@ -24,9 +24,9 @@ impl PersVector {
         let mut result_vector = Vec::<Rc<int>>::new();
         // TODO use iterator ;)
         for i in range(0u, self.ary.len()) {
-            match *self.ary[i].value(revision) {
-                Some(value) => result_vector.push(Rc::new(value)),
-                None        => break,
+            match self.ary[i].value(revision) {
+                Some(ref rct) => result_vector.push(rct.clone()),
+                None      => break,
             };
         }
         VectorRevision{rev: revision, ary: result_vector}

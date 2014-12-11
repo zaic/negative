@@ -34,13 +34,13 @@ impl VectorRevision {
         // TODO implement
     }
 
-    pub fn get(&self, id: uint) -> int {
-        *self.ary[id]
+    pub fn get<'a>(&'a self, id: uint) -> &'a int {
+        self.ary[id].deref()
     }
 }
 
 impl Index<uint, int> for VectorRevision {
-    fn index(&self, id: &uint) -> &int {
-        &*self.ary[*id]
+    fn index<'a>(&'a self, id: &uint) -> &'a int {
+        self.ary[*id].deref()
     }
 }
