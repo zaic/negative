@@ -32,6 +32,10 @@ impl<T> PersVector<T> {
         VectorRevision{rev: revision, ary: result_vector}
     }
 
+    pub fn current_revision(&self) -> i64 {
+        self.rev
+    }
+
 
 
     pub fn len(&self) -> uint {
@@ -50,9 +54,18 @@ impl<T> PersVector<T> {
 
     pub fn pop(&mut self) -> i64 {
         assert!(self.len > 0);
+
         self.rev += 1;
         self.len -= 1;
         self.ary[self.len].add_value(self.rev, None);
+        self.rev
+    }
+
+    pub fn modify(&mut self, id: uint, value: T) -> i64 {
+        assert!(id < self.len);
+
+        self.rev += 1;
+        self.ary[id].add_value(self.rev, Some(value));
         self.rev
     }
 }
@@ -97,4 +110,18 @@ fn vec_generic_test() {
     let rev_ololo = vs.push("ololo");
     assert_eq!(vs.get_by_revision(rev_pysch)[2], "pysch");
     assert_eq!(vs.get_by_revision(rev_ololo)[2], "ololo");
+}
+
+#[test]
+fn vec_modify_test() {
+    let mut v = PersVector::<int>::new();
+    for i in range(0i, 10i) {
+        v.push(i);
+    }
+    let pre_modify = v.get_by_revision(v.current_revision());
+    v.modify(7, 1807);
+    let post_modify = v.get_by_revision(v.current_revision());
+
+    assert_eq!(pre_modify[7], 7);
+    assert_eq!(post_modify[7], 1807);
 }

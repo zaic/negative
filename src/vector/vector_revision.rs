@@ -26,16 +26,16 @@ impl<T> VectorRevision<T> {
         self.ary.len()
     }
 
-    pub fn modify(&self, value: int) {
-        assert!(false, "Not implemented");
-    }
-
     pub fn iter(&self) {
         // TODO implement
     }
 
     pub fn get<'a>(&'a self, id: uint) -> &'a T {
         self.ary[id].deref()
+    }
+
+    pub fn modify(&mut self, id: uint, value: T) {
+        assert!(false, "Not implemented");
     }
 }
 
