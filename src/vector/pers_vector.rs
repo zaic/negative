@@ -7,21 +7,21 @@ use vector::vector_revision::VectorRevision;
 
 
 
-pub struct PersVector {
+pub struct PersVector<T> {
     rev: i64,
 
-    ary: Vec<VectorElement<int>>,
+    ary: Vec<VectorElement<T>>,
     len: uint,
 }
 
-impl PersVector {
-    pub fn new() -> PersVector {
+impl<T> PersVector<T> {
+    pub fn new() -> PersVector<T> {
         PersVector{rev: 0, ary: Vec::new(), len: 0}
     }
 
-    pub fn get_by_revision(&self, revision : i64) -> VectorRevision {
+    pub fn get_by_revision(&self, revision : i64) -> VectorRevision<T> {
         assert!(revision <= self.rev);
-        let mut result_vector = Vec::<Rc<int>>::new();
+        let mut result_vector = Vec::<Rc<T>>::new();
         // TODO use iterator ;)
         for i in range(0u, self.ary.len()) {
             match self.ary[i].value(revision) {
@@ -38,7 +38,7 @@ impl PersVector {
         self.len
     }
 
-    pub fn push(&mut self, value: int) -> i64 {
+    pub fn push(&mut self, value: T) -> i64 {
         self.rev += 1;
         if self.ary.len() == self.len {
             self.ary.push(VectorElement::new());
@@ -59,7 +59,7 @@ impl PersVector {
 
 #[test]
 fn vec_test() {
-    let mut v = PersVector::new();
+    let mut v = PersVector::<int>::new();
     v.push(1807);
     let rev_before = v.push(2609);
     assert_eq!(v.len(), 2u);
@@ -84,4 +84,17 @@ fn vec_test() {
 
     let immut_val = vec_middle[0];
     assert_eq!(immut_val, 1807);
+}
+
+#[test]
+fn vec_generic_test() {
+    let mut vs = PersVector::<&str>::new();
+    vs.push("pysch");
+    vs.push("pysch");
+    let rev_pysch = vs.push("pysch");
+    assert_eq!(vs.len(), 3u);
+    vs.pop();
+    let rev_ololo = vs.push("ololo");
+    assert_eq!(vs.get_by_revision(rev_pysch)[2], "pysch");
+    assert_eq!(vs.get_by_revision(rev_ololo)[2], "ololo");
 }

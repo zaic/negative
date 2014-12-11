@@ -6,13 +6,13 @@ use vector::fat_node::VectorElement;
 
 
 
-pub struct VectorRevision {
+pub struct VectorRevision<T> {
     pub rev: i64,
-    pub ary: Vec<Rc<int>>,
+    pub ary: Vec<Rc<T>>,
 }
 
-impl VectorRevision {
-    pub fn push(&mut self, value: int) -> i64 {
+impl<T> VectorRevision<T> {
+    pub fn push(&mut self, value: T) -> i64 {
         assert!(false, "Not implemented");
         -1
     }
@@ -34,13 +34,13 @@ impl VectorRevision {
         // TODO implement
     }
 
-    pub fn get<'a>(&'a self, id: uint) -> &'a int {
+    pub fn get<'a>(&'a self, id: uint) -> &'a T {
         self.ary[id].deref()
     }
 }
 
-impl Index<uint, int> for VectorRevision {
-    fn index<'a>(&'a self, id: &uint) -> &'a int {
+impl<T> Index<uint, T> for VectorRevision<T> {
+    fn index<'a>(&'a self, id: &uint) -> &'a T {
         self.ary[*id].deref()
     }
 }
