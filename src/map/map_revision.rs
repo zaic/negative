@@ -34,8 +34,3 @@ impl MapRevision {
         }
     }
 }
-
-#[test]
-pub fn map_revision_test() {
-    //let mut m = MapRevision::new();
-}

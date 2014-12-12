@@ -27,38 +27,6 @@ impl PersMap {
 
 
 
-    pub fn len(&self) -> uint {
-        // TODO
-        0u
-    }
-/*
-    pub fn push(&mut self, value: T) -> i64 {
-        self.rev += 1;
-        if self.ary.len() == self.len {
-            self.ary.push(VectorElement::new());
-        }
-        self.ary[self.len].add_value(self.rev, Some(value));
-        self.len += 1;
-        self.rev
-    }
-
-    pub fn pop(&mut self) -> i64 {
-        assert!(self.len > 0);
-
-        self.rev += 1;
-        self.len -= 1;
-        self.ary[self.len].add_value(self.rev, None);
-        self.rev
-    }
-
-    pub fn modify(&mut self, id: uint, value: T) -> i64 {
-        assert!(id < self.len);
-
-        self.rev += 1;
-        self.ary[id].add_value(self.rev, Some(value));
-        self.rev
-    }
-*/
     pub fn insert(&mut self, value: int) -> i64 {
         self.rev += 1;
         self.last_root = self.last_root.insert(Kuchevo::new_leaf(value, &(self.rev as int))); // TODO random!!!111
