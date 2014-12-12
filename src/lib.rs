@@ -1,5 +1,5 @@
 pub mod vector;
-mod map;
+pub mod map;
 
 #[test]
 fn it_works() {

@@ -24,12 +24,26 @@ impl PartialEq for Kuchevo {
 // TODO: remove Default
 impl<T: Default + Ord + Clone> Kuchevo<T> {
     pub fn new_empty() -> Rc<Kuchevo<T>> {
-        Rc::new( Kuchevo::Node(Default::default(), 0, Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)))
+        // TODO replacy by Kuchevo::Nil?
+        Rc::new(Kuchevo::Node(Default::default(), 0, Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)))
+    }
+
+    pub fn new_leaf(val: T, priority: &int) -> Rc<Kuchevo<T>> {
+        Rc::new(Kuchevo::Node(val, *priority, Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)))
     }
 
     pub fn new(val: T, priority: int, left: Rc<Kuchevo<T>>, right: Rc<Kuchevo<T>>) -> Rc<Kuchevo<T>> {
         Rc::new(Kuchevo::Node(val, priority, left.clone(), right.clone()))
     }
+
+    pub fn is_nil(&self) -> bool {
+        match *self {
+            Kuchevo::Nil => true,
+            _            => false,
+        }
+    }
+
+
 
     pub fn merge(left: Rc<Kuchevo<T>>, right: Rc<Kuchevo<T>>) -> Rc<Kuchevo<T>> {
         match (left.deref(), right.deref()) {
@@ -121,16 +135,26 @@ impl<T: Default + Ord + Clone> Kuchevo<T> {
         }
     }
 
-    pub fn is_nil(&self) -> bool {
-        match *self {
-            Kuchevo::Nil => true,
-            _            => false,
-        }
+    // return new root with new element
+    pub fn insert(&self, value: Rc<Kuchevo<T>>) -> Rc<Kuchevo<T>> {
+        let (key, priority) = match value.deref() {
+            &Kuchevo::Nil              => panic!("wtf?"),
+            &Kuchevo::Node(ref k, ref p, _, _) => (k.clone(), p),
+        };
+        let (less, greater) = self.split(&key);
+        let value_kuchevo = Kuchevo::new_leaf(key, priority);
+        Kuchevo::merge(less, Kuchevo::merge(value_kuchevo, greater))
+    }
+
+    // return new root without old element
+    pub fn erase(&self, key: &T) -> Rc<Kuchevo<T>> {
+        // TODO
+        Kuchevo::new_empty()
     }
 }
 
 #[test]
-fn kuchest() {
+fn compile_kuchest() {
     let a = Kuchevo::<int>::new(0, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let b = Kuchevo::new(3, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let c = Kuchevo::new(2, 4, a.clone(), b.clone());
@@ -148,7 +172,7 @@ fn kuchest() {
     let k = Kuchevo::new(7, 10, f.clone(), j.clone());
     println!("{}", k);
 
-    let (l, m) = k.split(&10); // Kuchevo::split(*k, 10);
+    let (l, m) = k.split(&10);
     println!("{}", l);
     println!("{}", m);
 
@@ -164,4 +188,14 @@ fn kuchest() {
     println!("{}", ccc);
     assert!(false);
     */
+}
+
+#[test]
+fn insert_erase_kuchest() {
+    let a = Kuchevo::<int>::new_leaf(0, &1);
+    let b = a.insert(Kuchevo::new_leaf(10, &3));
+    let c = b.insert(Kuchevo::new_leaf(20, &2));
+
+    println!("{}", c);
+    //assert!(false);
 }
