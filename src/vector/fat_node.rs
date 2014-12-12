@@ -18,34 +18,23 @@ impl<T> VectorElement<T> {
     }
 
     pub fn value<'a>(&'a self, revision: i64) -> Option<Rc<T>> {
-        // TODO improve performance usinb binary search
-        //   common algo: use upper_bound() and move iterator by one element back
-        //   but Iterator in rust doesn't have methods suck back() or next_rev()
-        let mut iter = self.history.rev_iter();
-        loop {
-            let (key, val) = iter.next().unwrap();
-            /*
-            let (key, val) = match iter.next() {
-                Some((key, val)) => (*key, (*val).clone()),
-                None             => (0i64, Rc::new(None)),
-            };
-            */
-            if *key <= revision {
-                let res = match *val {
-                    None => None,
-                    Some(ref rct) => Some(rct.clone()),
-                };
-                return res; // TODO remove clone?
-            }
-        }
+        let it = self.history.lower_bound(&(-revision)).next();
+        match it {
+            None => return None,
+            Some((ref key, ref val)) =>
+                match *val {
+                    &None => return None,
+                    &Some(ref rct) => return Some(rct.clone()),
+                }
+        };
     }
 
     pub fn add_value(&mut self, revision: i64, value: Option<T>) {
         match value {
             None =>
-                self.history.insert(revision, None),
+                self.history.insert(-revision, None),
             Some(real_val) =>
-                self.history.insert(revision, Some(Rc::new(real_val)))
+                self.history.insert(-revision, Some(Rc::new(real_val)))
         };
     }
 }

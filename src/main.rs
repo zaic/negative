@@ -1,4 +1,5 @@
 pub mod vector;
+pub mod map;
 
 fn main() {
     println!("Hi, cargo");
