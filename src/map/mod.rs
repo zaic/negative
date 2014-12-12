@@ -1,2 +1,3 @@
 mod kuchevo;
-//pub mod pers_map;
+mod map_revision;
+pub mod pers_map;
