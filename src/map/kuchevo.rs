@@ -95,17 +95,17 @@ impl<T: Default + Ord + Clone> Kuchevo<T> {
     }
 
     // return trees:
-    // [-inf; mid) and [mid; +inf)
-    pub fn split(&self, mid: &T) -> (Rc<Kuchevo<T>>, Rc<Kuchevo<T>>) {
+    // [-inf; mid), [mid; mid] and (mid; +inf)
+    pub fn split(&self, mid: &T) -> (Rc<Kuchevo<T>>, Rc<Kuchevo<T>>, Rc<Kuchevo<T>>) {
         match self {
             &Kuchevo::Nil =>
-                (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)),
+                (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)),
 
             &Kuchevo::Node(ref key, priority, ref left, ref right) =>
                 if *key < *mid {
-                    let (sp_left, sp_right) = 
+                    let (sp_left, sp_mid, sp_right) = 
                         if right.is_nil() {
-                            (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil))
+                            (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil))
                         } else {
                             right.split(key)
                         };
@@ -114,23 +114,33 @@ impl<T: Default + Ord + Clone> Kuchevo<T> {
                                                           priority,
                                                           left.clone(),
                                                           sp_left));
+                    let res_mid   = sp_mid;
                     let res_right = sp_right;
-                    (res_left, res_right)
+                    (res_left, res_mid, res_right)
 
-                } else {
-                    let (sp_left, sp_right) = 
+                } else if *key > *mid {
+                    let (sp_left, sp_mid, sp_right) = 
                         if left.is_nil() {
-                            (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil))
+                            (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil))
                         } else {
                             left.split(key)
                         };
 
                     let res_left  = sp_left;
+                    let res_mid   = sp_mid;
                     let res_right = Rc::new(Kuchevo::Node(key.clone(),
                                                           priority,
                                                           sp_right,
                                                           right.clone()));
-                    (res_left, res_right)
+                    (res_left, res_mid, res_right)
+                } else {
+                    let res_left  = left.clone();
+                    let res_mid   = Rc::new(Kuchevo::Node(key.clone(),
+                                                          priority,
+                                                          Rc::new(Kuchevo::Nil),
+                                                          Rc::new(Kuchevo::Nil)));
+                    let res_right = right.clone();
+                    (res_left, res_mid, res_right)
                 }
         }
     }
@@ -141,15 +151,15 @@ impl<T: Default + Ord + Clone> Kuchevo<T> {
             &Kuchevo::Nil              => panic!("wtf?"),
             &Kuchevo::Node(ref k, ref p, _, _) => (k.clone(), p),
         };
-        let (less, greater) = self.split(&key);
+        let (less, equal, greater) = self.split(&key);
         let value_kuchevo = Kuchevo::new_leaf(key, priority);
         Kuchevo::merge(less, Kuchevo::merge(value_kuchevo, greater))
     }
 
     // return new root without old element
     pub fn erase(&self, key: &T) -> Rc<Kuchevo<T>> {
-        // TODO
-        Kuchevo::new_empty()
+        let (left, mid, right) = self.split(key);
+        Kuchevo::merge(left, right)
     }
 }
 
@@ -172,9 +182,10 @@ fn compile_kuchest() {
     let k = Kuchevo::new(7, 10, f.clone(), j.clone());
     println!("{}", k);
 
-    let (l, m) = k.split(&10);
+    let (l, m, o) = k.split(&10);
     println!("{}", l);
     println!("{}", m);
+    println!("{}", o);
 
     let n = Kuchevo::merge(m, l);
     println!("{}", n);
@@ -195,7 +206,15 @@ fn insert_erase_kuchest() {
     let a = Kuchevo::<int>::new_leaf(0, &1);
     let b = a.insert(Kuchevo::new_leaf(10, &3));
     let c = b.insert(Kuchevo::new_leaf(20, &2));
-
     println!("{}", c);
+
+    let (dl, dm, dr) = c.split(&10);
+    println!("{}", dl);
+    println!("{}", dm);
+    println!("{}", dr);
+
+    let e = c.erase(&10);
+    println!("{}", e);
+
     //assert!(false);
 }
