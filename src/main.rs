@@ -1,5 +1,6 @@
 pub mod vector;
 pub mod map;
+pub mod inner;
 
 #[cfg(not(test))]
 fn main() {

@@ -1,25 +1,32 @@
+/*
+ *  This file contains generic FatNode implementation.
+ *
+ *  Implementation use search trees and allow access to specific revision with
+ *  O(lg(N)) time and inserting new revision with O(lg(N)) time.
+ */
+
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 
 
 
-pub struct VectorElement<T> {
+pub struct FatNode<T> {
     history: TreeMap<i64, Option<Rc<T>>>
 }
 
-impl<T> VectorElement<T> {
-    pub fn new() -> VectorElement<T> {
+impl<T> FatNode<T> {
+    pub fn new() -> FatNode<T> {
         let mut map = TreeMap::new();
         map.insert(0, None);
-        VectorElement{history: map}
+        FatNode{history: map}
     }
 
     pub fn value<'a>(&'a self, revision: i64) -> Option<Rc<T>> {
         let it = self.history.lower_bound(&(-revision)).next();
         match it {
             None => return None,
-            Some((_, ref val)) =>
-                match *val {
+            Some((_, ref value)) =>
+                match *value {
                     &None => return None,
                     &Some(ref rct) => return Some(rct.clone()),
                 }
@@ -30,15 +37,17 @@ impl<T> VectorElement<T> {
         match value {
             None =>
                 self.history.insert(-revision, None),
-            Some(real_val) =>
-                self.history.insert(-revision, Some(Rc::new(real_val)))
+            Some(real_value) =>
+                self.history.insert(-revision, Some(Rc::new(real_value)))
         };
     }
 }
 
+
+
 #[test]
 fn fatnode_init_first_test() {
-    let mut node = VectorElement::<int>::new();
+    let mut node = FatNode::<int>::new();
     assert_eq!(node.value(0i64), None);
     assert_eq!(node.value(1i64), None);
     node.add_value(1i64, Some(1807));
@@ -48,7 +57,7 @@ fn fatnode_init_first_test() {
 
 #[test]
 fn fatnode_init_second_test() {
-    let mut node2 = VectorElement::<int>::new();
+    let mut node2 = FatNode::<int>::new();
     node2.add_value(1, Some(-10));
     node2.add_value(10, Some(12));
     assert_eq!(node2.value(0), None);
@@ -61,7 +70,7 @@ fn fatnode_init_second_test() {
 
 #[test]
 fn fatnode_generic_string_test() {
-    let mut node_str = VectorElement::<&str>::new();
+    let mut node_str = FatNode::<&str>::new();
     node_str.add_value(1, Some("hello"));
     node_str.add_value(10, Some("rust"));
     assert_eq!(node_str.value(0), None);
@@ -76,7 +85,7 @@ fn fatnode_generic_string_test() {
 fn fatnode_generic_float_test() {
     use std::num::FloatMath;
 
-    let mut node_flt = VectorElement::<f32>::new();
+    let mut node_flt = FatNode::<f32>::new();
     node_flt.add_value(12, Some(-1.0));
     node_flt.add_value(13, Some(1e-7));
     node_flt.add_value(14, Some(1.3333333));

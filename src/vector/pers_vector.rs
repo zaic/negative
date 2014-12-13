@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::vec::Vec;
-use vector::fat_node::VectorElement;
+use inner::fat_node::FatNode;
 use vector::vector_revision::VectorRevision;
 
 
@@ -8,7 +8,7 @@ use vector::vector_revision::VectorRevision;
 pub struct PersVector<T> {
     rev: i64,
 
-    ary: Vec<VectorElement<T>>,
+    ary: Vec<FatNode<T>>,
     len: uint,
 }
 
@@ -43,7 +43,7 @@ impl<T> PersVector<T> {
     pub fn push(&mut self, value: T) -> i64 {
         self.rev += 1;
         if self.ary.len() == self.len {
-            self.ary.push(VectorElement::new());
+            self.ary.push(FatNode::new());
         }
         self.ary[self.len].add_value(self.rev, Some(value));
         self.len += 1;

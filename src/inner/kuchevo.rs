@@ -1,5 +1,15 @@
+/*
+ *  This file contains generic treap implementation.
+ *
+ *  Treap inner structure and basic treap operations described here:
+ *      http://habrahabr.ru/post/101818/
+ *
+ *  Treap is a binary search tree, which allow O(lg(N)) inserting and removing.
+ *  Treap can be easily converted to persistent data structure 
+ *  using path-copying approach.
+ */
+
 use std::rc::Rc;
-use std::default::Default;
 
 #[deriving(Show)]
 pub enum Kuchevo<T> {
@@ -10,8 +20,7 @@ pub enum Kuchevo<T> {
          Rc<Kuchevo<T>>  /* right    */,)
 }
 
-// TODO: remove Default
-impl<T: Default + Ord + Clone> Kuchevo<T> {
+impl<T: Ord + Clone> Kuchevo<T> {
     pub fn new_empty() -> Rc<Kuchevo<T>> {
         Rc::new(Kuchevo::Nil)
     }
@@ -42,12 +51,10 @@ impl<T: Default + Ord + Clone> Kuchevo<T> {
             // right is Nil, return left
             (&Kuchevo::Node(_, _, _, _), &Kuchevo::Nil) =>
                 left.clone(),
-                //Rc::new(Kuchevo::Node(l_key, l_priortiy, l_child_left, l_child_right)),
 
             // left is Nil, return right
             (&Kuchevo::Nil, &Kuchevo::Node(_, _, _, _)) =>
                 right.clone(),
-                //Rc::new(Kuchevo::Node(r_key, r_priortiy, r_child_left, r_child_right)),
 
             // merging
             (&Kuchevo::Node(ref l_key, l_priortiy, ref l_child_left, ref l_child_right),

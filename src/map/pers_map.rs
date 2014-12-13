@@ -1,6 +1,6 @@
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
-use map::kuchevo::Kuchevo;
+use inner::kuchevo::Kuchevo;
 use map::map_revision::MapRevision;
 use std::default::Default;
 
@@ -12,7 +12,7 @@ pub struct PersMap<T> {
     last_root: Rc<Kuchevo<T>>,
 }
 
-impl<T: Default + Ord + Clone> PersMap<T> {
+impl<T: Ord + Clone> PersMap<T> {
     pub fn new() -> PersMap<T> {
         PersMap{rev: 0, roots: TreeMap::new(), last_root: Rc::new(Kuchevo::Nil)}
     }

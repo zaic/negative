@@ -1,7 +1,7 @@
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
-use map::kuchevo::Kuchevo;
+use inner::kuchevo::Kuchevo;
 
 
 
