@@ -10,8 +10,9 @@
  */
 
 use std::rc::Rc;
+use std::fmt;
 
-#[deriving(Show)]
+//#[deriving(Show)]
 pub enum Kuchevo<T> {
     Nil,
     Node(T               /* key      */,
@@ -26,7 +27,7 @@ impl<T: Ord + Clone> Kuchevo<T> {
     }
 
     pub fn new_leaf(val: T, priority: &int) -> Rc<Kuchevo<T>> {
-        Rc::new(Kuchevo::Node(val, *priority, Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)))
+        Rc::new(Kuchevo::Node(val, *priority, Kuchevo::new_empty(), Kuchevo::new_empty()))
     }
 
     pub fn new(val: T, priority: int, left: Rc<Kuchevo<T>>, right: Rc<Kuchevo<T>>) -> Rc<Kuchevo<T>> {
@@ -81,8 +82,8 @@ impl<T: Ord + Clone> Kuchevo<T> {
                 } else {
                     Rc::new(Kuchevo::Node(r_key.clone(),
                                           r_priortiy,
-                                          Kuchevo::merge(r_child_left.clone(),
-                                                         left.clone()),
+                                          Kuchevo::merge(left.clone(),
+                                                         r_child_left.clone()),
                                           r_child_right.clone()))
 
                 }
@@ -158,42 +159,86 @@ impl<T: Ord + Clone> Kuchevo<T> {
     }
 }
 
-#[test]
-fn compile_kuchest() {
+impl<T: fmt::Show> fmt::Show for Kuchevo<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Kuchevo::Nil => 
+                write!(f, "x"),
+
+            &Kuchevo::Node(ref key, priority, ref left, ref right) =>
+                write!(f, "(k={},p={},({},{}))", key, priority, **left, **right),
+        }
+    }
+}
+
+
+
+#[cfg(test)]
+fn build_tree_from_habr() -> (Rc<Kuchevo<int>>, String, String, String) {
+    // build tree from reference article on habr
+    // http://hsto.org/storage/habraeffect/a1/0a/a10a744def8f325a1019502ecc175ef6.png
+
     let a = Kuchevo::<int>::new(0, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let b = Kuchevo::new(3, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let c = Kuchevo::new(2, 4, a.clone(), b.clone());
     let ccc = Kuchevo::new(2, 4, a.clone(), b.clone());
+    let c_str = "(k=2,p=4,((k=0,p=3,(x,x)),(k=3,p=3,(x,x))))";
+    assert_eq!(c_str, format!("{}", c).as_slice());
 
     let d = Kuchevo::new(5, 1, Kuchevo::new_empty(), Kuchevo::new_empty());
     let e = Kuchevo::new(6, 2, d.clone(), Kuchevo::new_empty());
     let f = Kuchevo::new(4, 6, c.clone(), e.clone());
+    let f_str = format!("(k=4,p=6,({},(k=6,p=2,((k=5,p=1,(x,x)),x))))", c_str);
+    assert_eq!(f_str, format!("{}", f));
 
     let g = Kuchevo::new(11, 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let h = Kuchevo::new(9, 7, Kuchevo::new_empty(), g.clone());
     let i = Kuchevo::new(14, 4, Kuchevo::new_empty(), Kuchevo::new_empty());
     let j = Kuchevo::new(13, 8, h.clone(), i.clone());
+    let j_str = format!("(k=13,p=8,((k=9,p=7,(x,(k=11,p=3,(x,x)))),(k=14,p=4,(x,x))))");
+    assert_eq!(j_str, format!("{}", j));
 
     let k = Kuchevo::new(7, 10, f.clone(), j.clone());
-    println!("{}", k);
+    let k_str = format!("(k=7,p=10,({},{}))", f_str, j_str);
+    assert_eq!(k_str, format!("{}", k));
 
-    let (l, m, o) = k.split(&10);
-    println!("{}", l);
-    println!("{}", m);
-    println!("{}", o);
+    (k, k_str, f_str, j_str)
+}
 
-    let n = Kuchevo::merge(m, l);
-    println!("{}", n);
+#[test]
+fn build_habr_kuchest() {
+    build_tree_from_habr();
+}
 
-    let q = Kuchevo::new(10, 10, j, k);
+#[test]
+fn split_to_three_kuchest() {
+    let (root, _, left_tree_str, right_tree_str) = build_tree_from_habr();
 
-/*
-    println!("{}", a);
-    println!("{}", b);
-    println!("{}", c);
-    println!("{}", ccc);
-    assert!(false);
-    */
+    let (less, equal, greater) = root.split(&7);
+    assert_eq!(left_tree_str, format!("{}", less));
+    assert_eq!(right_tree_str, format!("{}", greater));
+    assert_eq!("(k=7,p=10,(x,x))", format!("{}", equal).as_slice());
+}
+
+#[test]
+fn split_and_merge_kuchest() {
+    let (root, full_tree_str, left_tree_str, right_tree_str) = build_tree_from_habr();
+
+    let (less, equal, greater) = root.split(&8);
+    assert_eq!("x", format!("{}", equal).as_slice());
+    let merged = Kuchevo::merge(less, greater);
+    assert_eq!(full_tree_str, format!("{}", merged));
+}
+
+#[test]
+fn build_habr_using_insert_kuchest() {
+    let mut root = Kuchevo::<int>::new_empty();
+    let elements = [[0i, 3], [2, 4], [3, 3], [5, 1], [6, 2], [4, 6], [7, 10], [9, 7], [14, 4], [11, 3], [13, 8]];
+    for i in elements.iter() {
+        root = root.insert(Kuchevo::new_leaf(i[0], &i[1]));
+    }
+    assert_eq!("(k=7,p=10,((k=4,p=6,((k=2,p=4,((k=0,p=3,(x,x)),x)),(k=3,p=3,((k=6,p=2,(x,(k=5,p=1,(x,x)))),x)))),(k=13,p=8,((k=11,p=3,(x,x)),(k=9,p=7,((k=14,p=4,(x,x)),x))))))",
+               format!("{}", root).as_slice());
 }
 
 #[test]
@@ -201,15 +246,12 @@ fn insert_erase_kuchest() {
     let a = Kuchevo::<int>::new_leaf(0, &1);
     let b = a.insert(Kuchevo::new_leaf(10, &3));
     let c = b.insert(Kuchevo::new_leaf(20, &2));
-    println!("{}", c);
-
-    let (dl, dm, dr) = c.split(&10);
-    println!("{}", dl);
-    println!("{}", dm);
-    println!("{}", dr);
+    assert_eq!("(k=10,p=3,((k=0,p=1,(x,x)),(k=20,p=2,(x,x))))",
+               format!("{}", c).as_slice());
 
     let e = c.erase(&10);
-    println!("{}", e);
-
-    //assert!(false);
+    assert_eq!("(k=20,p=2,((k=0,p=1,(x,x)),x))",
+               format!("{}", e).as_slice());
 }
+
+// TODO: large insert-erase tests
