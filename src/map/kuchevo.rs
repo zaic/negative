@@ -10,22 +10,10 @@ pub enum Kuchevo<T> {
          Rc<Kuchevo<T>>  /* right    */,)
 }
 
-/*
-impl PartialEq for Kuchevo {
-    fn eq(&self, other: &Kuchevo) -> bool {
-        match (self, *other) {
-            (&Kuchevo(Kuchevo::Nil), Kuchevo::Nil) => true,
-            _                            => false,
-        }
-    }
-}
-*/
-
 // TODO: remove Default
 impl<T: Default + Ord + Clone> Kuchevo<T> {
     pub fn new_empty() -> Rc<Kuchevo<T>> {
-        // TODO replacy by Kuchevo::Nil?
-        Rc::new(Kuchevo::Node(Default::default(), 0, Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil)))
+        Rc::new(Kuchevo::Nil)
     }
 
     pub fn new_leaf(val: T, priority: &int) -> Rc<Kuchevo<T>> {
@@ -151,7 +139,7 @@ impl<T: Default + Ord + Clone> Kuchevo<T> {
             &Kuchevo::Nil              => panic!("wtf?"),
             &Kuchevo::Node(ref k, ref p, _, _) => (k.clone(), p),
         };
-        let (less, equal, greater) = self.split(&key);
+        let (less, _, greater) = self.split(&key);
         let value_kuchevo = Kuchevo::new_leaf(key, priority);
         Kuchevo::merge(less, Kuchevo::merge(value_kuchevo, greater))
     }

@@ -1,7 +1,5 @@
-use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
-use std::num::abs_sub;
 use vector::fat_node::VectorElement;
 use vector::vector_revision::VectorRevision;
 
