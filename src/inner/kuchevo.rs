@@ -12,7 +12,6 @@
 use std::rc::Rc;
 use std::fmt;
 
-//#[deriving(Show)]
 pub enum Kuchevo<T> {
     Nil,
     Node(T               /* key      */,
