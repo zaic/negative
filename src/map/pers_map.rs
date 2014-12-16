@@ -1,23 +1,27 @@
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use inner::kuchevo::Kuchevo;
+use inner::lcg_random::LCG;
+use map::map_entry::MapEntry;
 use map::map_revision::MapRevision;
-use std::default::Default;
 
 
-pub struct PersMap<T> {
+
+pub struct PersMap<K> {
     rev: i64,
 
-    roots: TreeMap<i64, Rc<Kuchevo<T>>>,
-    last_root: Rc<Kuchevo<T>>,
+    roots: TreeMap<i64, Rc<Kuchevo<K>>>,
+    last_root: Rc<Kuchevo<K>>,
+
+    prnd: LCG,
 }
 
-impl<T: Ord + Clone> PersMap<T> {
-    pub fn new() -> PersMap<T> {
-        PersMap{rev: 0, roots: TreeMap::new(), last_root: Rc::new(Kuchevo::Nil)}
+impl<K: Ord + Clone> PersMap<K> {
+    pub fn new() -> PersMap<K> {
+        PersMap{rev: 0, roots: TreeMap::new(), last_root: Rc::new(Kuchevo::Nil), prnd: LCG::new()}
     }
 
-    pub fn get_by_revision(&self, revision : i64) -> MapRevision<T> {
+    pub fn get_by_revision(&self, revision : i64) -> MapRevision<K> {
         assert!(revision <= self.rev);
         MapRevision{rev: revision, root: self.roots[revision].clone()}
     }
@@ -28,14 +32,14 @@ impl<T: Ord + Clone> PersMap<T> {
 
 
 
-    pub fn insert(&mut self, value: T) -> i64 {
+    pub fn insert(&mut self, value: K) -> i64 {
         self.rev += 1;
-        self.last_root = (*self.last_root).insert(Kuchevo::new_leaf(value, &(self.rev as int))); // TODO random!!!111
+        self.last_root = (*self.last_root).insert(Kuchevo::new_leaf(value, &self.prnd.next()));
         self.roots.insert(self.rev, self.last_root.clone());
         self.rev
     }
 
-    pub fn remove(&mut self, value: &T) -> i64 {
+    pub fn remove(&mut self, value: &K) -> i64 {
         self.rev += 1;
         self.last_root = self.last_root.erase(value);
         self.roots.insert(self.rev, self.last_root.clone());
@@ -49,6 +53,7 @@ fn map_test() {
     m.insert(10);
     m.insert(20);
     m.insert(30);
+    println!("root = {}", m.last_root);
     let map_before = m.get_by_revision(m.current_revision());
     m.remove(&30);
     let map_after  = m.get_by_revision(m.current_revision());

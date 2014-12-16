@@ -5,18 +5,18 @@ use inner::kuchevo::Kuchevo;
 
 
 
-pub struct MapRevision<T> {
+pub struct MapRevision<K> {
     // TODO fix public field, using ::new()
     pub rev: i64,
-    pub root: Rc<Kuchevo<T>>,
+    pub root: Rc<Kuchevo<K>>,
 }
 
-impl<T: Ord> MapRevision<T> {
+impl<K: Ord> MapRevision<K> {
     pub fn len(&self) -> uint {
         0u
     }
 
-    pub fn contains(&self, value: &T) -> bool {
+    pub fn contains(&self, value: &K) -> bool {
         let mut node = self.root.clone();
         loop {
             let next_node = match node.deref() {

@@ -102,7 +102,7 @@ impl<T: Ord + Clone> Kuchevo<T> {
                         if right.is_nil() {
                             (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil))
                         } else {
-                            right.split(key)
+                            right.split(mid)
                         };
 
                     let res_left  = Rc::new(Kuchevo::Node(key.clone(),
@@ -118,7 +118,7 @@ impl<T: Ord + Clone> Kuchevo<T> {
                         if left.is_nil() {
                             (Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil), Rc::new(Kuchevo::Nil))
                         } else {
-                            left.split(key)
+                            left.split(mid)
                         };
 
                     let res_left  = sp_left;
@@ -231,13 +231,14 @@ fn split_and_merge_kuchest() {
 
 #[test]
 fn build_habr_using_insert_kuchest() {
+    let (_, full_tree_str, _, _) = build_tree_from_habr();
+
     let mut root = Kuchevo::<int>::new_empty();
     let elements = [[0i, 3], [2, 4], [3, 3], [5, 1], [6, 2], [4, 6], [7, 10], [9, 7], [14, 4], [11, 3], [13, 8]];
     for i in elements.iter() {
         root = root.insert(Kuchevo::new_leaf(i[0], &i[1]));
     }
-    assert_eq!("(k=7,p=10,((k=4,p=6,((k=2,p=4,((k=0,p=3,(x,x)),x)),(k=3,p=3,((k=6,p=2,(x,(k=5,p=1,(x,x)))),x)))),(k=13,p=8,((k=11,p=3,(x,x)),(k=9,p=7,((k=14,p=4,(x,x)),x))))))",
-               format!("{}", root).as_slice());
+    assert_eq!(full_tree_str, format!("{}", root));
 }
 
 #[test]
