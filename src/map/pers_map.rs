@@ -2,6 +2,7 @@ use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use inner::kuchevo::Kuchevo;
 use inner::lcg_random::LCG;
+use inner::lcg_random::CoolLCG;
 use map::map_entry::MapEntry;
 use map::map_revision::MapRevision;
 
@@ -13,7 +14,7 @@ pub struct PersMap<K> {
     roots: TreeMap<i64, Rc<Kuchevo<K>>>,
     last_root: Rc<Kuchevo<K>>,
 
-    prnd: LCG,
+    prnd: CoolLCG,
 }
 
 impl<K: Ord + Clone> PersMap<K> {

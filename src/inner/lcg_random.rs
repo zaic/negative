@@ -8,16 +8,23 @@
 
 
 
-pub struct LCG {
+pub trait LCG {
+    fn new() -> Self;
+    fn next(&mut self) -> int;
+}
+
+
+
+pub struct CoolLCG {
     x: u64,
 }
 
-impl LCG {
-    pub fn new() -> LCG {
-        LCG{x: 1807}
+impl LCG for CoolLCG {
+    fn new() -> CoolLCG {
+        CoolLCG{x: 1807}
     }
 
-    pub fn next(&mut self) -> int {
+    fn next(&mut self) -> int {
         let a = 1103515245u64;
         let c = 12345u64;
         let m = 0x80000000u64;
@@ -28,8 +35,33 @@ impl LCG {
 
 #[test]
 fn lcg_random_test() {
-    let mut rnd = LCG::new();
+    let mut rnd : CoolLCG = LCG::new();
     let one = rnd.next();
     let two = rnd.next();
     assert!(one != two);
+}
+
+
+
+pub struct DebugLCG {
+    x: u64,
+}
+
+impl LCG for DebugLCG {
+    fn new() -> DebugLCG {
+        DebugLCG{x: 0}
+    }
+
+    fn next(&mut self) -> int {
+        self.x += 1;
+        self.x as int
+    }
+}
+
+#[test]
+fn lcg_debug_test() {
+    let mut rnd : DebugLCG = LCG::new();
+    for i in range(1i, 10) {
+        assert!(rnd.next() == i);
+    }
 }
