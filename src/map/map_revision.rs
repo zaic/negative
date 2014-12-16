@@ -2,6 +2,7 @@ use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
 use inner::kuchevo::Kuchevo;
+use map::map_iterator::MapIterator;
 
 
 
@@ -12,6 +13,10 @@ pub struct MapRevision<K, V> {
 }
 
 impl<K: Ord, V> MapRevision<K, V> {
+    pub fn iter<'a>(&'a self) -> MapIterator<'a, K, V> {
+        MapIterator::new(&self.root)
+    }
+
     pub fn len(&self) -> uint {
         0u
     }

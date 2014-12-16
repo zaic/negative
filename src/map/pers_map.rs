@@ -3,7 +3,7 @@ use std::rc::Rc;
 use inner::kuchevo::Kuchevo;
 use inner::lcg_random::LCG;
 use inner::lcg_random::CoolLCG;
-use map::map_entry::MapEntry;
+use map::map_iterator::MapIterator;
 use map::map_revision::MapRevision;
 
 
@@ -49,7 +49,7 @@ impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
 }
 
 #[test]
-fn map_test() {
+fn map_insert_remove_test() {
     let mut m = PersMap::<int, ()>::new();
     m.insert(10, ());
     m.insert(20, ());
@@ -63,4 +63,26 @@ fn map_test() {
 
     assert_eq!(map_before.contains(&30), true);
     assert_eq!(map_after.contains(&30), false);
+}
+
+#[test]
+fn map_iterator_test() {
+    for q in range(2i, 100i) {
+        let mut map = PersMap::<int, ()>::new();
+        let max_key_val = q;
+
+        for i in range(1i, max_key_val) {
+            map.insert(i, ());
+        }
+
+        let mut expected_value = 1i;
+        let cur_state = map.get_by_revision(map.current_revision());
+        println!("tree: {}", cur_state.root);
+        for it in cur_state.iter() {
+            println!("wow: {}", it);
+            let (a, b) = it;
+            assert_eq!(a, &expected_value);
+            expected_value += 1;
+        }
+    }
 }
