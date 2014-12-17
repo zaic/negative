@@ -27,6 +27,14 @@ impl<K: Ord + Clone, V: Clone> Persistent<MapRevision<K, V>> for PersMap<K, V> {
     fn current_revision(&self) -> i64 {
         self.rev
     }
+
+    fn undo(&mut self) -> i64 {
+        panic!("Not implemented");
+    }
+
+    fn redo(&mut self) -> i64 {
+        panic!("Not implemented");
+    }
 }
 
 impl<K: Ord + Clone, V: Clone> PersMap<K, V> {

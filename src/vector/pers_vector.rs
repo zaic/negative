@@ -30,6 +30,14 @@ impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
     fn current_revision(&self) -> i64 {
         self.rev
     }
+
+    fn undo(&mut self) -> i64 {
+        panic!("Not implemented");
+    }
+
+    fn redo(&mut self) -> i64 {
+        panic!("Not implemented");
+    }
 }
 
 impl<T> PersVector<T> {
