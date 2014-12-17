@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::vec::Vec;
 use inner::fat_node::FatNode;
+use inner::persistent::Persistent;
 use vector::vector_revision::VectorRevision;
 
 
@@ -12,12 +13,8 @@ pub struct PersVector<T> {
     len: uint,
 }
 
-impl<T> PersVector<T> {
-    pub fn new() -> PersVector<T> {
-        PersVector{rev: 0, ary: Vec::new(), len: 0}
-    }
-
-    pub fn get_by_revision(&self, revision : i64) -> VectorRevision<T> {
+impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
+    fn get_by_revision(&self, revision : i64) -> VectorRevision<T> {
         assert!(revision <= self.rev);
         let mut result_vector = Vec::<Rc<T>>::new();
         // TODO use iterator ;)
@@ -30,8 +27,14 @@ impl<T> PersVector<T> {
         VectorRevision{rev: revision, ary: result_vector}
     }
 
-    pub fn current_revision(&self) -> i64 {
+    fn current_revision(&self) -> i64 {
         self.rev
+    }
+}
+
+impl<T> PersVector<T> {
+    pub fn new() -> PersVector<T> {
+        PersVector{rev: 0, ary: Vec::new(), len: 0}
     }
 
 
@@ -116,9 +119,9 @@ fn vec_modify_test() {
     for i in range(0i, 10i) {
         v.push(i);
     }
-    let pre_modify = v.get_by_revision(v.current_revision());
+    let pre_modify = v.last_revision();
     v.modify(7, 1807);
-    let post_modify = v.get_by_revision(v.current_revision());
+    let post_modify = v.last_revision();
 
     assert_eq!(pre_modify[7], 7);
     assert_eq!(post_modify[7], 1807);

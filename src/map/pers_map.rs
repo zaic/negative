@@ -3,6 +3,7 @@ use std::rc::Rc;
 use inner::kuchevo::Kuchevo;
 use inner::lcg_random::LCG;
 use inner::lcg_random::CoolLCG;
+use inner::persistent::Persistent;
 use map::map_iterator::MapIterator;
 use map::map_revision::MapRevision;
 
@@ -17,18 +18,20 @@ pub struct PersMap<K, V> {
     prnd: CoolLCG,
 }
 
-impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
-    pub fn new() -> PersMap<K, V> {
-        PersMap{rev: 0, roots: TreeMap::new(), last_root: Rc::new(Kuchevo::Nil), prnd: LCG::new()}
-    }
-
-    pub fn get_by_revision(&self, revision : i64) -> MapRevision<K, V> {
+impl<K: Ord + Clone, V: Clone> Persistent<MapRevision<K, V>> for PersMap<K, V> {
+    fn get_by_revision(&self, revision : i64) -> MapRevision<K, V> {
         assert!(revision <= self.rev);
         MapRevision{rev: revision, root: self.roots[revision].clone()}
     }
 
-    pub fn current_revision(&self) -> i64 {
+    fn current_revision(&self) -> i64 {
         self.rev
+    }
+}
+
+impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
+    pub fn new() -> PersMap<K, V> {
+        PersMap{rev: 0, roots: TreeMap::new(), last_root: Rc::new(Kuchevo::Nil), prnd: LCG::new()}
     }
 
 
@@ -55,9 +58,9 @@ fn map_insert_remove_test() {
     m.insert(20, ());
     m.insert(30, ());
     println!("root = {}", m.last_root);
-    let map_before = m.get_by_revision(m.current_revision());
+    let map_before = m.last_revision();
     m.remove(&30);
-    let map_after  = m.get_by_revision(m.current_revision());
+    let map_after  = m.last_revision();
     m.remove(&25);
     m.remove(&20);
 
@@ -76,7 +79,7 @@ fn map_iterator_test() {
         }
 
         let mut expected_value = 1i;
-        let cur_state = map.get_by_revision(map.current_revision());
+        let cur_state = map.last_revision();
         println!("tree: {}", cur_state.root);
         for it in cur_state.iter() {
             println!("wow: {}", it);
