@@ -1,8 +1,7 @@
-use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
-use std::num::abs_sub;
-use vector::fat_node::VectorElement;
+use inner::fat_node::FatNode;
+use inner::persistent::Persistent;
 use vector::vector_revision::VectorRevision;
 
 
@@ -10,16 +9,12 @@ use vector::vector_revision::VectorRevision;
 pub struct PersVector<T> {
     rev: i64,
 
-    ary: Vec<VectorElement<T>>,
+    ary: Vec<FatNode<T>>,
     len: uint,
 }
 
-impl<T> PersVector<T> {
-    pub fn new() -> PersVector<T> {
-        PersVector{rev: 0, ary: Vec::new(), len: 0}
-    }
-
-    pub fn get_by_revision(&self, revision : i64) -> VectorRevision<T> {
+impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
+    fn get_by_revision(&self, revision : i64) -> VectorRevision<T> {
         assert!(revision <= self.rev);
         let mut result_vector = Vec::<Rc<T>>::new();
         // TODO use iterator ;)
@@ -32,8 +27,22 @@ impl<T> PersVector<T> {
         VectorRevision{rev: revision, ary: result_vector}
     }
 
-    pub fn current_revision(&self) -> i64 {
+    fn current_revision(&self) -> i64 {
         self.rev
+    }
+
+    fn undo(&mut self) -> i64 {
+        panic!("Not implemented");
+    }
+
+    fn redo(&mut self) -> i64 {
+        panic!("Not implemented");
+    }
+}
+
+impl<T> PersVector<T> {
+    pub fn new() -> PersVector<T> {
+        PersVector{rev: 0, ary: Vec::new(), len: 0}
     }
 
 
@@ -45,7 +54,7 @@ impl<T> PersVector<T> {
     pub fn push(&mut self, value: T) -> i64 {
         self.rev += 1;
         if self.ary.len() == self.len {
-            self.ary.push(VectorElement::new());
+            self.ary.push(FatNode::new());
         }
         self.ary[self.len].add_value(self.rev, Some(value));
         self.len += 1;
@@ -118,9 +127,9 @@ fn vec_modify_test() {
     for i in range(0i, 10i) {
         v.push(i);
     }
-    let pre_modify = v.get_by_revision(v.current_revision());
+    let pre_modify = v.last_revision();
     v.modify(7, 1807);
-    let post_modify = v.get_by_revision(v.current_revision());
+    let post_modify = v.last_revision();
 
     assert_eq!(pre_modify[7], 7);
     assert_eq!(post_modify[7], 1807);

@@ -3,3 +3,4 @@
 pub mod vector;
 pub mod map;
 pub mod dlist;
+pub mod inner;

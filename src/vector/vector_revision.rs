@@ -1,8 +1,5 @@
-use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
-use std::num::abs_sub;
-use vector::fat_node::VectorElement;
 
 
 
@@ -12,7 +9,7 @@ pub struct VectorRevision<T> {
 }
 
 impl<T> VectorRevision<T> {
-    pub fn push(&mut self, value: T) -> i64 {
+    pub fn push(&mut self, _: T) -> i64 {
         assert!(false, "Not implemented");
         -1
     }
@@ -34,7 +31,7 @@ impl<T> VectorRevision<T> {
         self.ary[id].deref()
     }
 
-    pub fn modify(&mut self, id: uint, value: T) {
+    pub fn modify(&mut self, _: uint, _: T) {
         assert!(false, "Not implemented");
     }
 }
