@@ -9,8 +9,6 @@ use std::collections::HashMap as HMap;
 use std::rc::Rc;
 use std::vec::Vec;
 
-
-
 pub struct VersionTree {
     parent: TMap<i64, i64>,
 }
@@ -96,8 +94,6 @@ fn version_tree_test() {
     assert!(!vt.is_initial(5));
 }
 
-
-
 pub struct VersionedFatNode<T: Clone> {
     values: HMap<i64, T>,
     revisions: Rc<RCell<VersionTree>>
@@ -106,13 +102,13 @@ pub struct VersionedFatNode<T: Clone> {
 impl<T: Clone> VersionedFatNode<T> {
     pub fn new(rev: Rc<RCell<VersionTree>>) -> VersionedFatNode<T> {
         let map = HMap::new();
-        VersionedFatNode{values: map, revisions: rev.clone()}
+        VersionedFatNode{values: map, revisions: rev}
     }
 
     pub fn value(&self, revision: i64) -> Option<T> {
         for cur_rev in self.revisions.borrow().parent_branch(revision).iter() {
             match self.values.get(cur_rev) {
-                None            => continue,
+                None             => continue,
                 Some(&ref value) => return Some(value.clone())
             }
         }
