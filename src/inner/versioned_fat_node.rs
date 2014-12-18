@@ -57,6 +57,10 @@ impl VersionTree {
     }
 }
 
+pub fn new_vtree(r: i64) -> Rc<RCell<VersionTree>> {
+    Rc::new(RCell::new(VersionTree::new(r)))
+}
+
 #[test]
 fn version_tree_test() {
     /*
@@ -123,8 +127,8 @@ impl<T: Clone> VersionedFatNode<T> {
 
 #[test]
 fn versioned_fatnode_test() {
-    let vs = VersionTree::new(1);
-    let mut vf = VersionedFatNode::<&str>::new(Rc::new(RCell::new(vs)));
+    let vs = new_vtree(1);
+    let mut vf = VersionedFatNode::new(vs);
 
     /*
      * Build the same tree as above:
@@ -153,10 +157,10 @@ fn versioned_fatnode_test() {
 
 #[test]
 fn three_fatnodes_test() {
-    let vs = Rc::new(RCell::new(VersionTree::new(1)));
-    let mut vfa = VersionedFatNode::<&str>::new(vs.clone());
-    let mut vfb = VersionedFatNode::<&str>::new(vs.clone());
-    let mut vfc = VersionedFatNode::<&str>::new(vs.clone());
+    let vs = new_vtree(1);
+    let mut vfa = VersionedFatNode::new(vs.clone());
+    let mut vfb = VersionedFatNode::new(vs.clone());
+    let mut vfc = VersionedFatNode::new(vs);
 
     /*
      * Build this tree one more time...
