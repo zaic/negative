@@ -9,25 +9,27 @@ use std::collections::HashMap as HMap;
 use std::rc::Rc;
 use std::vec::Vec;
 
+pub type Revision = int;
+
 pub struct VersionTree {
-    parent: TMap<i64, i64>,
+    parent: TMap<Revision, Revision>,
 }
 
 impl VersionTree {
-    pub fn new(initial_revision: i64) -> VersionTree {
+    pub fn new(initial_revision: Revision) -> VersionTree {
         let mut p = TMap::new();
         p.insert(initial_revision, -1);
         VersionTree{parent: p}
     }
 
-    pub fn parent_revision(&self, revision: i64) -> i64 {
+    pub fn parent_revision(&self, revision: Revision) -> Revision {
         assert!(revision > 0);
         assert!(self.parent.contains_key(&revision));
 
         self.parent[revision]
     }
 
-    pub fn parent_branch(&self, revision: i64) -> Vec<i64> {
+    pub fn parent_branch(&self, revision: Revision) -> Vec<Revision> {
         let mut branch = vec![revision];
         loop {
             let cur_rev = branch[branch.len() - 1];
@@ -39,14 +41,14 @@ impl VersionTree {
         branch
     }
 
-    pub fn is_initial(&self, revision: i64) -> bool {
+    pub fn is_initial(&self, revision: Revision) -> bool {
         assert!(revision > 0);
         assert!(self.parent.contains_key(&revision));
 
         self.parent[revision] == -1
     }
 
-    pub fn insert(&mut self, new_revision: i64, old_revision: i64) {
+    pub fn insert(&mut self, new_revision: Revision, old_revision: Revision) {
         assert!(new_revision > 0);
         assert!(!self.parent.contains_key(&new_revision));
         assert!(old_revision == -1 || self.parent.contains_key(&old_revision));
@@ -55,7 +57,7 @@ impl VersionTree {
     }
 }
 
-pub fn new_vtree(r: i64) -> Rc<RCell<VersionTree>> {
+pub fn new_vtree(r: Revision) -> Rc<RCell<VersionTree>> {
     Rc::new(RCell::new(VersionTree::new(r)))
 }
 
@@ -95,7 +97,7 @@ fn version_tree_test() {
 }
 
 pub struct VersionedFatNode<T: Clone> {
-    values: HMap<i64, T>,
+    values: HMap<Revision, T>,
     revisions: Rc<RCell<VersionTree>>
 }
 
@@ -105,7 +107,7 @@ impl<T: Clone> VersionedFatNode<T> {
         VersionedFatNode{values: map, revisions: rev}
     }
 
-    pub fn value(&self, revision: i64) -> Option<T> {
+    pub fn value(&self, revision: Revision) -> Option<T> {
         for cur_rev in self.revisions.borrow().parent_branch(revision).iter() {
             match self.values.get(cur_rev) {
                 None             => continue,
@@ -115,7 +117,7 @@ impl<T: Clone> VersionedFatNode<T> {
         None
     }
 
-    pub fn add_value(&mut self, new_revision: i64, value: T, old_revision: i64) {
+    pub fn add_value(&mut self, new_revision: Revision, value: T, old_revision: Revision) {
         self.revisions.borrow_mut().insert(new_revision, old_revision);
         self.values.insert(new_revision, value.clone());
     }
