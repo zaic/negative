@@ -4,7 +4,7 @@ use std::collections::TreeMap as TMap;
 use std::vec::Vec;
 use std::fmt::Show;
 
-type Revision = int;
+pub type Revision = int;
 type Link<A> = Option<NRef<A>>;
 
 struct RMap<A>(TMap<Revision, A>);
@@ -20,9 +20,7 @@ struct RGen {
     revision: Revision
 }
 
-struct RVec(Vec<Revision>);
-
-struct DList<A: Clone> {
+pub struct DList<A: Clone> {
     rgen: Rc<RefCell<RGen>>,
     revision: Vec<Revision>,
     size: RMap<uint>,
@@ -30,7 +28,7 @@ struct DList<A: Clone> {
     back: RMap<Link<A>>
 }
 
-struct Iter<A> {
+pub struct DLIter<A> {
     revision: Revision,
     front: Link<A>,
     size: uint
@@ -81,8 +79,7 @@ pub fn top<A>(v: &Vec<A>) -> &A {
 }
 
 impl<A: Clone> DList<A> {
-//    fn new(rg: Rc<RefCell<RGen>>) -> DList<A> {
-    fn new() -> DList<A> {
+    pub fn new() -> DList<A> {
         let g = Rc::new(RefCell::new(RGen::new()));
         let r = vec!(0);
         let s = RMap::new(0, 0);
@@ -91,11 +88,11 @@ impl<A: Clone> DList<A> {
         DList{rgen: g, revision: r, size: s, front: f, back: b}
     }
 
-    fn _last(&self) -> Revision {
+    pub fn _last(&self) -> Revision {
         *top(&self.revision)
     }
 
-    fn push_f(&mut self, v: A) {
+    pub fn push_f(&mut self, v: A) {
         let r = self.rgen.borrow_mut().next();
         let f: NRef<A> = match self.front.get(r) {
             &None => {
@@ -115,7 +112,7 @@ impl<A: Clone> DList<A> {
         self.size.insert(r, s + 1);
     }
 
-    fn push_b(&mut self, v: A) {
+    pub fn push_b(&mut self, v: A) {
         let r = self.rgen.borrow_mut().next();
         let b: NRef<A> = match self.back.get(r) {
             &None => {
@@ -135,19 +132,19 @@ impl<A: Clone> DList<A> {
         self.size.insert(r, s + 1);
     }
 
-    fn push_nf(&mut self, vs: &[A]) {
+    pub fn push_nf(&mut self, vs: &[A]) {
         for v in vs.iter() {
             self.push_f(v.clone());
         }
     }
 
-    fn push_nb(&mut self, vs: &[A]) {
+    pub fn push_nb(&mut self, vs: &[A]) {
         for v in vs.iter() {
             self.push_b(v.clone());
         }
     }
 
-    fn iter(&self, r: Revision) -> Iter<A> {
+    pub fn iter(&self, r: Revision) -> DLIter<A> {
         let r = self.revision[r as uint];
         let f = match self.front.get(r) {
             &None        => None,
@@ -155,15 +152,15 @@ impl<A: Clone> DList<A> {
         };
         let &s = self.size.get(r);
 
-        Iter{revision: r, front: f, size: s}
+        DLIter{revision: r, front: f, size: s}
     }
 
-    fn last(&self) -> Iter<A> {
+    pub fn last(&self) -> DLIter<A> {
         self.iter((self.revision.len() - 1) as Revision)
     }
 }
 
-fn cat<A: Clone>(l_1: &mut DList<A>, l_2: &mut DList<A>) {
+pub fn cat<A: Clone>(l_1: &mut DList<A>, l_2: &mut DList<A>) {
     let r_1 = l_1._last();
     let r_2 = l_2._last();
     let &s_1 = l_1.size.get(r_1);
@@ -208,7 +205,7 @@ fn cat<A: Clone>(l_1: &mut DList<A>, l_2: &mut DList<A>) {
     };
 }
 
-impl<A: Clone + Eq + Show> Iterator<A> for Iter<A> {
+impl<A: Clone + Eq + Show> Iterator<A> for DLIter<A> {
     fn next(&mut self) -> Option<A> {
         if self.size == 0 {
             None
@@ -248,7 +245,7 @@ macro_rules! dlist(
     });
 )
 
-fn assert<A: Show + Clone + Eq>(mut xs: Iter<A>, es: &[A]) {
+fn assert<A: Show + Clone + Eq>(mut xs: DLIter<A>, es: &[A]) {
     let mut i = 0;
     for x in xs {
         assert_eq!(x, es[i]);
