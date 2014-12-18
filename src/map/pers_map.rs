@@ -1,5 +1,6 @@
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
+use std::vec::Vec;
 use inner::kuchevo::Kuchevo;
 use inner::lcg_random::LCG;
 use inner::lcg_random::CoolLCG;
@@ -7,55 +8,95 @@ use inner::persistent::Persistent;
 use map::map_iterator::MapIterator;
 use map::map_revision::MapRevision;
 
+type Node<K, V> = Rc<Kuchevo<K, V>>;
+
 
 
 pub struct PersMap<K, V> {
-    rev: i64,
+    line_history: Vec<i64>, // branch of history for undo-redo
+    head_revision_id: uint,  // id of the current verision in line_history vector
+    last_revision: i64,     // revisions counter
 
-    roots: TreeMap<i64, Rc<Kuchevo<K, V>>>,
-    last_root: Rc<Kuchevo<K, V>>,
+    roots: TreeMap<i64, Rc<Kuchevo<K, V>>>, // root tree node for each revision
 
-    prnd: CoolLCG,
+    prnd: CoolLCG, // random generator for priorities
 }
 
 impl<K: Ord + Clone, V: Clone> Persistent<MapRevision<K, V>> for PersMap<K, V> {
     fn get_by_revision(&self, revision : i64) -> MapRevision<K, V> {
-        assert!(revision <= self.rev);
+        assert!(revision <= self.last_revision);
+        assert!(self.roots.contains_key(&revision));
+
         MapRevision{rev: revision, root: self.roots[revision].clone()}
     }
 
     fn current_revision(&self) -> i64 {
-        self.rev
+        assert!(self.line_history.len() > self.head_revision_id);
+
+        self.line_history[self.head_revision_id]
     }
 
     fn undo(&mut self) -> i64 {
-        panic!("Not implemented");
+        assert!(self.head_revision_id > 0u);
+
+        self.head_revision_id -= 1;
+        self.line_history[self.head_revision_id]
     }
 
     fn redo(&mut self) -> i64 {
-        panic!("Not implemented");
+        assert!(self.head_revision_id < self.line_history.len() - 1u);
+
+        self.head_revision_id += 1;
+        self.line_history[self.head_revision_id]
     }
 }
 
 impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
     pub fn new() -> PersMap<K, V> {
-        PersMap{rev: 0, roots: TreeMap::new(), last_root: Rc::new(Kuchevo::Nil), prnd: LCG::new()}
+        let mut new_roots = TreeMap::new();
+        new_roots.insert(1, Kuchevo::new_empty());
+        PersMap{line_history: vec![1],
+                head_revision_id: 0,
+                last_revision: 1,
+                roots: new_roots,
+                prnd: LCG::new()}
     }
 
 
 
+    fn head(&self) -> Node<K, V> {
+        let a = self.head_revision_id;
+        let b: i64 = self.line_history[a].clone();
+        let c = self.roots[b].clone();
+        c
+    }
+
     pub fn insert(&mut self, key: K, value: V) -> i64 {
-        self.rev += 1;
-        self.last_root = (*self.last_root).insert(Kuchevo::new_leaf(key, value, &self.prnd.next()));
-        self.roots.insert(self.rev, self.last_root.clone());
-        self.rev
+        self.last_revision += 1;
+
+        let old_root = self.head();
+        let new_root = old_root.insert(Kuchevo::new_leaf(key, value, &self.prnd.next()));
+        self.roots.insert(self.last_revision, new_root);
+
+        self.head_revision_id += 1;
+        self.line_history.truncate(self.head_revision_id);
+        self.line_history.push(self.last_revision);
+
+        self.last_revision
     }
 
     pub fn remove(&mut self, key: &K) -> i64 {
-        self.rev += 1;
-        self.last_root = self.last_root.erase(key);
-        self.roots.insert(self.rev, self.last_root.clone());
-        self.rev
+        self.last_revision += 1;
+
+        let old_root = self.head();
+        let new_root = old_root.erase(key);
+        self.roots.insert(self.last_revision, new_root);
+
+        self.head_revision_id += 1;
+        self.line_history.truncate(self.head_revision_id);
+        self.line_history.push(self.last_revision);
+
+        self.last_revision
     }
 }
 
@@ -65,7 +106,7 @@ fn map_insert_remove_test() {
     m.insert(10, ());
     m.insert(20, ());
     m.insert(30, ());
-    println!("root = {}", m.last_root);
+    //println!("root = {}", m.last_root);
     let map_before = m.last_revision();
     m.remove(&30);
     let map_after  = m.last_revision();
@@ -96,4 +137,22 @@ fn map_iterator_test() {
             expected_value += 1;
         }
     }
+}
+
+#[test]
+fn map_undoredo_test() {
+    let mut map = PersMap::<int, &str>::new();
+
+    map.insert(1, "one");
+    map.insert(2, "two");
+    assert_eq!(map.last_revision().contains(&2), true);
+    assert_eq!(map.last_revision().contains(&1), true);
+
+    map.undo();
+    assert_eq!(map.last_revision().contains(&2), false);
+    assert_eq!(map.last_revision().contains(&1), true);
+
+    map.redo();
+    assert_eq!(map.last_revision().contains(&2), true);
+    assert_eq!(map.last_revision().contains(&1), true);
 }
