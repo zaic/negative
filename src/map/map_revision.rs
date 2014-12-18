@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::vec::Vec;
 use inner::kuchevo::Kuchevo;
 use map::map_iterator::MapIterator;
+use map::pers_map::PersMap;
 
 
 
@@ -10,6 +11,7 @@ pub struct MapRevision<K, V> {
     // TODO fix public field, using ::new()
     pub rev: i64,
     pub root: Rc<Kuchevo<K, V>>,
+    pub map_itself: Rc<PersMap<K, V>>,
 }
 
 impl<K: Ord, V> MapRevision<K, V> {
@@ -37,5 +39,9 @@ impl<K: Ord, V> MapRevision<K, V> {
             };
             node = next_node;
         }
+    }
+
+    pub fn insert(&mut self, key: K, value: V) -> i64 {
+        0i64
     }
 }

@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
@@ -5,29 +6,39 @@ use inner::kuchevo::Kuchevo;
 use inner::lcg_random::LCG;
 use inner::lcg_random::CoolLCG;
 use inner::persistent::Persistent;
+use inner::versioned_fat_node::VersionTree;
 use map::map_iterator::MapIterator;
-use map::map_revision::MapRevision;
+//use map::map_revision::MapRevision;
 
 pub type Node<K, V> = Rc<Kuchevo<K, V>>;
+pub type SharedData<K, V> = Rc<RefCell<SharedMapData<K, V>>>;
 
 
 
-pub struct PersMap<K, V> {
-    line_history: Vec<i64>, // branch of history for undo-redo
-    head_revision_id: uint, // id of the current verision in line_history vector
-    last_revision: i64,     // revisions counter
-
-    roots: TreeMap<i64, Node<K, V>>, // root tree node for each revision
-
-    prnd: CoolLCG, // random generator for priorities
+pub struct SharedMapData<K, V> {
+    pub last_revision:    i64, // revision counter
+    pub roots:            TreeMap<i64, Node<K, V>>, // root tree node for each revision
+    pub random:           CoolLCG, // random generator for priorities
+    //pub version_tree:     VersionTree, // just version tree
 }
 
-impl<K: Ord + Clone, V: Clone> Persistent<MapRevision<K, V>> for PersMap<K, V> {
-    fn get_by_revision(&self, revision : i64) -> MapRevision<K, V> {
-        assert!(revision <= self.last_revision);
-        assert!(self.roots.contains_key(&revision));
+pub struct PersMap<K, V> {
+    line_history:        Vec<i64>, // branch of history for undo-redo
+    head_revision_id:    uint, // id of the current verision in line_history vector
+    root:                Node<K, V>, // root node for current revision
+    shared_data:         SharedData<K, V>, // pointer to above structure
+}
 
-        MapRevision{rev: revision, root: self.roots[revision].clone()}
+impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
+    fn get_by_revision(&self, revision : i64) -> PersMap<K, V> {
+        assert!(revision <= self.shared_data.borrow().last_revision);
+        assert!(self.shared_data.borrow().roots.contains_key(&revision));
+
+        //MapRevision{rev: revision, root: self.roots[revision].clone()}
+        PersMap{line_history: vec![revision],
+                head_revision_id: 0,
+                root: self.shared_data.borrow().roots[revision].clone(),
+                shared_data: self.shared_data.clone()}
     }
 
     fn current_revision_id(&self) -> i64 {
@@ -40,80 +51,125 @@ impl<K: Ord + Clone, V: Clone> Persistent<MapRevision<K, V>> for PersMap<K, V> {
         assert!(self.head_revision_id > 0u);
 
         self.head_revision_id -= 1;
+        self.root = self.head();
         self.line_history[self.head_revision_id]
     }
 
     fn redo(&mut self) -> i64 {
-        assert!(self.head_revision_id < self.line_history.len() - 1u);
+        assert!(self.head_revision_id + 1u < self.line_history.len());
 
         self.head_revision_id += 1;
+        self.root = self.head();
         self.line_history[self.head_revision_id]
     }
 }
+
+impl<K: Ord + Clone, V: Clone> Clone for PersMap<K, V> {
+    fn clone(&self) -> PersMap<K, V> { // TODO Self?
+        PersMap{line_history: self.line_history.clone(),
+                head_revision_id: self.head_revision_id,
+                root: self.root.clone(),
+                shared_data: self.shared_data.clone()}
+    }
+}
+// TODO operator=
 
 impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
     pub fn new() -> PersMap<K, V> {
         let mut new_roots = TreeMap::new();
         new_roots.insert(1, Kuchevo::new_empty());
+        let shdata = Rc::new(RefCell::new(SharedMapData::<K, V>{last_revision: 1,
+                                                                roots: new_roots,
+                                                                random: LCG::new()}));
         PersMap{line_history: vec![1],
                 head_revision_id: 0,
-                last_revision: 1,
-                roots: new_roots,
-                prnd: LCG::new()}
+                root: Kuchevo::new_empty(),
+                shared_data: shdata}
     }
 
-
-
     fn head(&self) -> Node<K, V> {
-        let id = self.head_revision_id;
-        let rev = &self.line_history[id];
-        let root = self.roots[*rev].clone();
+        let rev = &self.line_history[self.head_revision_id];
+        let root = self.shared_data.borrow().roots[*rev].clone();
         root
     }
 
-    pub fn insert(&mut self, key: K, value: V) -> i64 {
-        self.last_revision += 1;
 
-        let old_root = self.head();
-        let new_root = old_root.insert(Kuchevo::new_leaf(key, value, &self.prnd.next()));
-        self.roots.insert(self.last_revision, new_root);
+
+    pub fn insert(&mut self, key: K, value: V) -> i64 {
+        let old_root = self.root.clone(); //self.head();
+        let mut data = self.shared_data.borrow_mut();
+        let revision = data.last_revision + 1;
+
+        let new_root = old_root.insert(Kuchevo::new_leaf(key, value, &data.random.next()));
+        data.roots.insert(revision, new_root.clone());
 
         self.head_revision_id += 1;
         self.line_history.truncate(self.head_revision_id);
-        self.line_history.push(self.last_revision);
+        self.line_history.push(revision);
+        self.root = new_root;
 
-        self.last_revision
+        data.last_revision = revision;
+        data.last_revision
     }
 
     pub fn remove(&mut self, key: &K) -> i64 {
-        self.last_revision += 1;
+        let old_root = self.root.clone(); //self.head();
+        let mut data = self.shared_data.borrow_mut();
+        let revision = data.last_revision + 1;
 
-        let old_root = self.head();
         let new_root = old_root.erase(key);
-        self.roots.insert(self.last_revision, new_root);
+        data.roots.insert(revision, new_root.clone());
 
         self.head_revision_id += 1;
         self.line_history.truncate(self.head_revision_id);
-        self.line_history.push(self.last_revision);
+        self.line_history.push(revision);
+        self.root = new_root;
 
-        self.last_revision
+        data.last_revision += 1;
+        data.last_revision
+    }
+
+    pub fn contains_key(&self, key: &K) -> bool {
+        let mut node = self.root.clone(); //self.head();
+        loop {
+            let next_node = match node.deref() {
+                &Kuchevo::Nil => return false,
+                &Kuchevo::Node(ref nkey, ref value, priority, ref left, ref right) =>
+                    if *nkey < *key {
+                        right.clone()
+                    } else if *nkey > *key {
+                        left.clone()
+                    } else {
+                        return true;
+                    }
+            };
+            node = next_node;
+        }
+    }
+
+    pub fn iter<'a>(&'a self) -> MapIterator<'a, K, V> {
+        MapIterator::new(&self.root)
     }
 }
 
 #[test]
 fn map_insert_remove_test() {
     let mut m = PersMap::<int, ()>::new();
+    println!("1");
     m.insert(10, ());
+    println!("2");
     m.insert(20, ());
+    println!("3");
     m.insert(30, ());
+    println!("4");
     let map_before = m.current();
     m.remove(&30);
     let map_after  = m.current();
     m.remove(&25);
     m.remove(&20);
 
-    assert_eq!(map_before.contains(&30), true);
-    assert_eq!(map_after.contains(&30), false);
+    assert_eq!(map_before.contains_key(&30), true);
+    assert_eq!(map_after.contains_key(&30), false);
 }
 
 #[test]
@@ -127,7 +183,7 @@ fn map_iterator_test() {
         }
 
         let mut expected_value = 1i;
-        let cur_state = map.current();
+        let cur_state = map.clone();
         println!("tree: {}", cur_state.root);
         for it in cur_state.iter() {
             println!("wow: {}", it);
@@ -135,6 +191,7 @@ fn map_iterator_test() {
             assert_eq!(a, &expected_value);
             expected_value += 1;
         }
+        assert_eq!(expected_value, q);
     }
 }
 
@@ -144,14 +201,61 @@ fn map_undoredo_test() {
 
     map.insert(1, "one");
     map.insert(2, "two");
-    assert_eq!(map.current().contains(&2), true);
-    assert_eq!(map.current().contains(&1), true);
+    println!("tree: {}", map.root);
+    assert_eq!(map.contains_key(&2), true);
+    assert_eq!(map.contains_key(&1), true);
 
     map.undo();
-    assert_eq!(map.current().contains(&2), false);
-    assert_eq!(map.current().contains(&1), true);
+    println!("tree: {}", map.root);
+    assert_eq!(map.contains_key(&2), false);
+    assert_eq!(map.contains_key(&1), true);
 
     map.redo();
-    assert_eq!(map.current().contains(&2), true);
-    assert_eq!(map.current().contains(&1), true);
+    println!("tree: {}", map.root);
+    assert_eq!(map.contains_key(&2), true);
+    assert_eq!(map.contains_key(&1), true);
+}
+
+#[test]
+fn map_full_persistent_test() {
+    let mut map = PersMap::<int, f32>::new();
+    /*
+     * My favourite tree:
+     *
+     *           7
+     *          / 
+     *         /
+     *  1--2--4--6
+     *      \
+     *       \
+     *        3--5--8
+     */
+
+    map.insert(2, 2.0);
+    map.insert(3, 3.0);
+    let mut three = map.clone();
+    map.undo();
+    map.insert(4, 4.0);
+    three.insert(5, 5.0);
+    let mut five = three.clone();
+    let four_id = map.current_revision_id();
+    map.insert(6, 6.0);
+    let mut four = map.get_by_revision(four_id);
+    four.insert(7, 7.0);
+    five.insert(8, 8.0);
+
+    assert!(five.contains_key(&3));
+    assert!(five.contains_key(&5));
+    assert!(five.contains_key(&8));
+    assert!(!five.contains_key(&4));
+    assert!(!five.contains_key(&7));
+
+    assert!(four.contains_key(&7));
+    assert!(!four.contains_key(&8));
+    assert!(four.contains_key(&4));
+    assert!(four.contains_key(&2));
+    assert!(!four.contains_key(&3));
+
+    assert!(five.get_by_revision(6).contains_key(&4));
+    assert!(!five.get_by_revision(6).contains_key(&7));
 }

@@ -51,7 +51,7 @@ impl<'a, K: Clone + Ord + fmt::Show + 'a, V: Clone + fmt::Show + 'a> Iterator<(&
                 }
 
             } else {
-                return if self.direction == 0 {
+                return if self.direction < 2 {
                     self.direction = 3;
                     res
                 } else {
