@@ -8,16 +8,16 @@ use inner::persistent::Persistent;
 use map::map_iterator::MapIterator;
 use map::map_revision::MapRevision;
 
-type Node<K, V> = Rc<Kuchevo<K, V>>;
+pub type Node<K, V> = Rc<Kuchevo<K, V>>;
 
 
 
 pub struct PersMap<K, V> {
     line_history: Vec<i64>, // branch of history for undo-redo
-    head_revision_id: uint,  // id of the current verision in line_history vector
+    head_revision_id: uint, // id of the current verision in line_history vector
     last_revision: i64,     // revisions counter
 
-    roots: TreeMap<i64, Rc<Kuchevo<K, V>>>, // root tree node for each revision
+    roots: TreeMap<i64, Node<K, V>>, // root tree node for each revision
 
     prnd: CoolLCG, // random generator for priorities
 }
@@ -30,7 +30,7 @@ impl<K: Ord + Clone, V: Clone> Persistent<MapRevision<K, V>> for PersMap<K, V> {
         MapRevision{rev: revision, root: self.roots[revision].clone()}
     }
 
-    fn current_revision(&self) -> i64 {
+    fn current_revision_id(&self) -> i64 {
         assert!(self.line_history.len() > self.head_revision_id);
 
         self.line_history[self.head_revision_id]
@@ -65,10 +65,10 @@ impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
 
 
     fn head(&self) -> Node<K, V> {
-        let a = self.head_revision_id;
-        let b: i64 = self.line_history[a].clone();
-        let c = self.roots[b].clone();
-        c
+        let id = self.head_revision_id;
+        let rev = &self.line_history[id];
+        let root = self.roots[*rev].clone();
+        root
     }
 
     pub fn insert(&mut self, key: K, value: V) -> i64 {
@@ -106,10 +106,9 @@ fn map_insert_remove_test() {
     m.insert(10, ());
     m.insert(20, ());
     m.insert(30, ());
-    //println!("root = {}", m.last_root);
-    let map_before = m.last_revision();
+    let map_before = m.current();
     m.remove(&30);
-    let map_after  = m.last_revision();
+    let map_after  = m.current();
     m.remove(&25);
     m.remove(&20);
 
@@ -128,7 +127,7 @@ fn map_iterator_test() {
         }
 
         let mut expected_value = 1i;
-        let cur_state = map.last_revision();
+        let cur_state = map.current();
         println!("tree: {}", cur_state.root);
         for it in cur_state.iter() {
             println!("wow: {}", it);
@@ -145,14 +144,14 @@ fn map_undoredo_test() {
 
     map.insert(1, "one");
     map.insert(2, "two");
-    assert_eq!(map.last_revision().contains(&2), true);
-    assert_eq!(map.last_revision().contains(&1), true);
+    assert_eq!(map.current().contains(&2), true);
+    assert_eq!(map.current().contains(&1), true);
 
     map.undo();
-    assert_eq!(map.last_revision().contains(&2), false);
-    assert_eq!(map.last_revision().contains(&1), true);
+    assert_eq!(map.current().contains(&2), false);
+    assert_eq!(map.current().contains(&1), true);
 
     map.redo();
-    assert_eq!(map.last_revision().contains(&2), true);
-    assert_eq!(map.last_revision().contains(&1), true);
+    assert_eq!(map.current().contains(&2), true);
+    assert_eq!(map.current().contains(&1), true);
 }

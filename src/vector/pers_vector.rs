@@ -27,7 +27,7 @@ impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
         VectorRevision{rev: revision, ary: result_vector}
     }
 
-    fn current_revision(&self) -> i64 {
+    fn current_revision_id(&self) -> i64 {
         self.rev
     }
 
@@ -127,9 +127,9 @@ fn vec_modify_test() {
     for i in range(0i, 10i) {
         v.push(i);
     }
-    let pre_modify = v.last_revision();
+    let pre_modify = v.current();
     v.modify(7, 1807);
-    let post_modify = v.last_revision();
+    let post_modify = v.current();
 
     assert_eq!(pre_modify[7], 7);
     assert_eq!(post_modify[7], 1807);
