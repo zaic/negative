@@ -7,11 +7,12 @@
 
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
+use inner::persistent::Revision;
 
 
 
 pub struct FatNode<T> {
-    history: TreeMap<i64, Option<Rc<T>>>
+    history: TreeMap<Revision, Option<Rc<T>>>
 }
 
 impl<T> FatNode<T> {
@@ -21,7 +22,7 @@ impl<T> FatNode<T> {
         FatNode{history: map}
     }
 
-    pub fn value<'a>(&'a self, revision: i64) -> Option<Rc<T>> {
+    pub fn value<'a>(&'a self, revision: Revision) -> Option<Rc<T>> {
         let it = self.history.lower_bound(&(-revision)).next();
         match it {
             None => return None,
@@ -33,7 +34,7 @@ impl<T> FatNode<T> {
         };
     }
 
-    pub fn add_value(&mut self, revision: i64, value: Option<T>) {
+    pub fn add_value(&mut self, revision: Revision, value: Option<T>) {
         match value {
             None =>
                 self.history.insert(-revision, None),
@@ -48,11 +49,11 @@ impl<T> FatNode<T> {
 #[test]
 fn fatnode_init_first_test() {
     let mut node = FatNode::<int>::new();
-    assert_eq!(node.value(0i64), None);
-    assert_eq!(node.value(1i64), None);
-    node.add_value(1i64, Some(1807));
-    assert_eq!(node.value(0i64), None);
-    assert_eq!(*node.value(1i64).unwrap(), 1807);
+    assert_eq!(node.value(0), None);
+    assert_eq!(node.value(1), None);
+    node.add_value(1, Some(1807));
+    assert_eq!(node.value(0), None);
+    assert_eq!(*node.value(1).unwrap(), 1807);
 }
 
 #[test]

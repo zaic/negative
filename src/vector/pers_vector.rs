@@ -1,20 +1,20 @@
-use std::rc::Rc;
-use std::vec::Vec;
 use inner::fat_node::FatNode;
 use inner::persistent::*;
+use std::rc::Rc;
+use std::vec::Vec;
 use vector::vector_revision::VectorRevision;
 
 
 
 pub struct PersVector<T> {
-    rev: i64,
+    rev: Revision,
 
     ary: Vec<FatNode<T>>,
     len: uint,
 }
 
 impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
-    fn get_by_revision(&self, revision : i64) -> VectorRevision<T> {
+    fn get_by_revision(&self, revision : Revision) -> VectorRevision<T> {
         assert!(revision <= self.rev);
         let mut result_vector = Vec::<Rc<T>>::new();
         // TODO use iterator ;)
@@ -27,17 +27,17 @@ impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
         VectorRevision{rev: revision, ary: result_vector}
     }
 
-    fn current_revision_id(&self) -> i64 {
+    fn current_revision_id(&self) -> Revision {
         self.rev
     }
 }
 
 impl<T> Recall for PersVector<T> {
-    fn undo(&mut self) -> i64 {
+    fn undo(&mut self) -> Revision {
         panic!("Not implemented");
     }
 
-    fn redo(&mut self) -> i64 {
+    fn redo(&mut self) -> Revision {
         panic!("Not implemented");
     }
 }
@@ -55,7 +55,7 @@ impl<T> PersVector<T> {
         self.len
     }
 
-    pub fn push(&mut self, value: T) -> i64 {
+    pub fn push(&mut self, value: T) -> Revision {
         self.rev += 1;
         if self.ary.len() == self.len {
             self.ary.push(FatNode::new());
@@ -65,7 +65,7 @@ impl<T> PersVector<T> {
         self.rev
     }
 
-    pub fn pop(&mut self) -> i64 {
+    pub fn pop(&mut self) -> Revision {
         assert!(self.len > 0);
 
         self.rev += 1;
@@ -74,7 +74,7 @@ impl<T> PersVector<T> {
         self.rev
     }
 
-    pub fn modify(&mut self, id: uint, value: T) -> i64 {
+    pub fn modify(&mut self, id: uint, value: T) -> Revision {
         assert!(id < self.len);
 
         self.rev += 1;

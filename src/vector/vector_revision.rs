@@ -1,20 +1,21 @@
 use std::rc::Rc;
 use std::vec::Vec;
+use inner::persistent::Revision;
 
 
 
 pub struct VectorRevision<T> {
-    pub rev: i64,
+    pub rev: Revision,
     pub ary: Vec<Rc<T>>,
 }
 
 impl<T> VectorRevision<T> {
-    pub fn push(&mut self, _: T) -> i64 {
+    pub fn push(&mut self, _: T) -> Revision {
         assert!(false, "Not implemented");
         -1
     }
 
-    pub fn pop(&mut self) -> i64 {
+    pub fn pop(&mut self) -> Revision {
         assert!(false, "Not implemented");
         -1
     }

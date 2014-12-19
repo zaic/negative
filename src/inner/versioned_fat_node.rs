@@ -8,8 +8,7 @@ use std::collections::TreeMap as TMap;
 use std::collections::HashMap as HMap;
 use std::rc::Rc;
 use std::vec::Vec;
-
-pub type Revision = int;
+use inner::persistent::Revision;
 
 pub struct VersionTree {
     parent: TMap<Revision, Revision>,

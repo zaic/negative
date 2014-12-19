@@ -1,12 +1,11 @@
+use inner::kuchevo::Kuchevo;
+use inner::lcg_random::*;
+use inner::persistent::*;
+use map::map_iterator::MapIterator;
 use std::cell::RefCell;
 use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
-use inner::kuchevo::Kuchevo;
-use inner::lcg_random::*;
-use inner::persistent::*;
-use inner::versioned_fat_node::VersionTree;
-use map::map_iterator::MapIterator;
 
 pub type Node<K, V> = Rc<Kuchevo<K, V>>;
 pub type SharedData<K, V> = Rc<RefCell<SharedMapData<K, V>>>;
@@ -14,21 +13,20 @@ pub type SharedData<K, V> = Rc<RefCell<SharedMapData<K, V>>>;
 
 
 pub struct SharedMapData<K, V> {
-    pub last_revision:    i64, // revision counter
-    pub roots:            TreeMap<i64, Node<K, V>>, // root tree node for each revision
+    pub last_revision:    Revision, // revision counter
+    pub roots:            TreeMap<Revision, Node<K, V>>, // root tree node for each revision
     pub random:           CoolLCG, // random generator for priorities
-    //pub version_tree:     VersionTree, // just version tree
 }
 
 pub struct PersMap<K, V> {
-    line_history:        Vec<i64>, // branch of history for undo-redo
+    line_history:        Vec<Revision>, // branch of history for undo-redo
     head_revision_id:    uint, // id of the current verision in line_history vector
     root:                Node<K, V>, // root node for current revision
     shared_data:         SharedData<K, V>, // pointer to above structure
 }
 
 impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
-    fn get_by_revision(&self, revision : i64) -> PersMap<K, V> {
+    fn get_by_revision(&self, revision : Revision) -> PersMap<K, V> {
         assert!(revision <= self.shared_data.borrow().last_revision);
         assert!(self.shared_data.borrow().roots.contains_key(&revision));
 
@@ -39,7 +37,7 @@ impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
                 shared_data: self.shared_data.clone()}
     }
 
-    fn current_revision_id(&self) -> i64 {
+    fn current_revision_id(&self) -> Revision {
         assert!(self.line_history.len() > self.head_revision_id);
 
         self.line_history[self.head_revision_id]
@@ -47,7 +45,7 @@ impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
 }
 
 impl<K: Clone + Ord, V: Clone> Recall for PersMap<K, V> {
-    fn undo(&mut self) -> i64 {
+    fn undo(&mut self) -> Revision {
         assert!(self.head_revision_id > 0u);
 
         self.head_revision_id -= 1;
@@ -55,7 +53,7 @@ impl<K: Clone + Ord, V: Clone> Recall for PersMap<K, V> {
         self.line_history[self.head_revision_id]
     }
 
-    fn redo(&mut self) -> i64 {
+    fn redo(&mut self) -> Revision {
         assert!(self.head_revision_id + 1u < self.line_history.len());
 
         self.head_revision_id += 1;
@@ -97,7 +95,7 @@ impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
 
 
 
-    pub fn insert(&mut self, key: K, value: V) -> i64 {
+    pub fn insert(&mut self, key: K, value: V) -> Revision {
         let old_root = self.root.clone(); //self.head();
         let mut data = self.shared_data.borrow_mut();
         let revision = data.last_revision + 1;
@@ -114,7 +112,7 @@ impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
         data.last_revision
     }
 
-    pub fn remove(&mut self, key: &K) -> i64 {
+    pub fn remove(&mut self, key: &K) -> Revision {
         let old_root = self.root.clone(); //self.head();
         let mut data = self.shared_data.borrow_mut();
         let revision = data.last_revision + 1;

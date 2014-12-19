@@ -3,7 +3,7 @@ use std::cell::RefCell as RCell;
 use std::collections::HashMap as HMap;
 use std::vec::Vec;
 use std::fmt::Show;
-use inner::versioned_fat_node::Revision;
+use inner::persistent::Revision;
 use inner::versioned_fat_node::VersionTree as VTree;
 use inner::lcg_random::LCG;
 use inner::lcg_random::CoolLCG;

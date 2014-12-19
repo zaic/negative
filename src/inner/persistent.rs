@@ -1,9 +1,8 @@
-// TODO 
-// type Revision = i64;
+pub type Revision = int;
 
 pub trait Persistent<T> {
-    fn get_by_revision(&self, revision : i64) -> T;
-    fn current_revision_id(&self) -> i64;
+    fn get_by_revision(&self, revision : Revision) -> T;
+    fn current_revision_id(&self) -> Revision;
 
     fn current(&self) -> T {
         self.get_by_revision(self.current_revision_id())
@@ -11,8 +10,8 @@ pub trait Persistent<T> {
 }
 
 pub trait Recall {
-    fn undo(&mut self) -> i64;
-    fn redo(&mut self) -> i64;
+    fn undo(&mut self) -> Revision;
+    fn redo(&mut self) -> Revision;
 }
 
 pub trait FullPersistent<T> : Persistent<T> + Recall {
