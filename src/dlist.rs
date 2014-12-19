@@ -172,24 +172,18 @@ impl<A: Clone> DList<A> {
     }
 }
 
+struct Box<A>(A);
+
 impl<'a, A: Clone + Eq + Show> Iterator<&'a A> for DLIter<'a, A> {
     fn next(&mut self) -> Option<&'a A> {
         let r = self.revision;
         match *self.link {
             None        => None,
             Some(ref l) => {
-                /*
-                self.link = l.borrow().next.get(r);
-                Some(l.borrow().value.get(r))
-                */
-                match Some(l.borrow().next.get(r)) {
-                    None         => (),
-                    Some(&ref n) => self.link = n
-                };
-                match Some(l.borrow().value.get(r)) {
-                    None         => None,
-                    Some(&ref v) => Some(v)
-                }
+                let Box(&ref n) = Box(l.borrow().next.get(r));
+                let Box(&ref v) = Box(l.borrow().value.get(r));
+                self.link = n;
+                Some(v)
             }
         }
     }
