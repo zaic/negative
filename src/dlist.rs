@@ -1,33 +1,24 @@
 use std::rc::Rc;
-use std::cell::RefCell as RCell;
-use std::collections::HashMap as HMap;
+use std::cell::RefCell;
 use std::vec::Vec;
 use std::fmt::Show;
-use inner::persistent::Revision;
-use inner::fat_field::RevisionTree as VTree;
-use inner::lcg_random::LCG;
-use inner::lcg_random::CoolLCG;
+use inner::persistent::*;
+use inner::fat_field::*;
+use inner::lcg_random::*;
 
-type Ref<A> = Rc<RCell<A>>;
-type NRef<A> = Ref<Node<A>>;
-type Link<A> = Option<NRef<A>>;
-
-struct RMap<A> {
-    values: HMap<Revision, A>,
-    tree:   Ref<VTree>
-}
+type Link<A> = Option<Rc<RefCell<Node<A>>>>;
 
 struct Node<A> {
-    value: RMap<A>,
-    prev:  RMap<Link<A>>,
-    next:  RMap<Link<A>>
+    value: FatField<A>,
+    prev:  FatField<Link<A>>,
+    next:  FatField<Link<A>>
 }
 
-pub struct DList<A: Clone> {
-    generator: Ref<CoolLCG>,
-    tree:      Ref<VTree>,
-    front:     RMap<Link<A>>,
-    back:      RMap<Link<A>>,
+pub struct DList<A> {
+    generator: Rc<RefCell<CoolLCG>>,
+    tree:      Rc<RefCell<RevisionTree>>,
+    front:     FatField<Link<A>>,
+    back:      FatField<Link<A>>,
     head:      uint,
     history:   Vec<Revision>
 }
@@ -37,86 +28,58 @@ pub struct DLIter<'a, A: 'a> {
     link:     &'a Link<A>
 }
 
-fn new_ref<A>(a: A) -> Ref<A> {
-    Rc::new(RCell::new(a))
-}
-
-impl<A: Clone> RMap<A> {
-    pub fn new(tree: Ref<VTree>, r: Revision, v: A) -> RMap<A> {
-        let mut values = HMap::new();
-        values.insert(r, v);
-        RMap {
-            values: values,
-            tree:   tree
-        }
-    }
-
-    pub fn get(&self, r: Revision) -> &A {
-        for e in self.tree.borrow().parent_branch(r).iter() {
-            match self.values.get(e) {
-                None         => continue,
-                Some(&ref v) => return v
-            }
-        }
-        panic!("we are doomed")
-    }
-
-    pub fn insert(&mut self, r: Revision, v: A) {
-        self.values.insert(r, v);
-    }
-}
-
-impl<A: Clone> DList<A> {
+impl<A> DList<A> {
     pub fn new() -> DList<A> {
-        let g: Ref<CoolLCG> = new_ref(LCG::new());
+        let generator: Rc<RefCell<CoolLCG>> = Rc::new(RefCell::new(LCG::new()));
 
-        let e = g.borrow_mut().next();
-        let i = vec!(e);
+        let root = generator.borrow_mut().next();
+        let history = vec!(root);
 
-        let h = 0;
-        let t = new_ref(VTree::new(e));
+        let head = 0;
+        let tree = Rc::new(RefCell::new(RevisionTree::new(root)));
 
-        let f = RMap::new(t.clone(), e, None);
-        let b = RMap::new(t.clone(), e, None);
+        let mut front = FatField::new(tree.clone());
+        let mut back = FatField::new(tree.clone());
+
+        front.insert(root, None);
+        back.insert(root, None);
+
         DList {
-            generator: g,
-            tree:      t,
-            front:     f,
-            back:      b,
-            head:      h,
-            history:   i
+            generator: generator,
+            tree:      tree,
+            front:     front,
+            back:      back,
+            head:      head,
+            history:   history
         }
     }
 
-    fn new_node(&self, r: Revision, v: A, p: Link<A>, n: Link<A>) -> NRef<A> {
-        new_ref(
-            Node {
-                value: RMap::new(self.tree.clone(), r, v),
-                prev:  RMap::new(self.tree.clone(), r, p),
-                next:  RMap::new(self.tree.clone(), r, n) 
-            }
-        )
+    fn new_node(&self, r: Revision, v: A, p: Link<A>, n: Link<A>) -> Rc<RefCell<Node<A>>> {
+        let mut vs = FatField::new(self.tree.clone());
+        let mut ps = FatField::new(self.tree.clone());
+        let mut ns = FatField::new(self.tree.clone());
+
+        vs.insert(r, v);
+        ps.insert(r, p);
+        ns.insert(r, n);
+
+        let n = Node {
+            value: vs,
+            prev:  ps,
+            next:  ns
+        };
+
+        Rc::new(RefCell::new(n))
     }
 
     pub fn head(&self) -> Revision {
         self.history[self.head]
     }
 
-    pub fn undo(&mut self, n: uint) {
-        let k = self.head as int - n as int;
-        assert!(k >= 0);
-        self.head -= n;
-    }
-
-    pub fn redo(&mut self, n: uint) {
-        assert!(self.head + n + 1 <= self.history.len());
-        self.head += n;
-    }
-
-    fn push(&mut self, v: A) {
+    pub fn push(&mut self, v: A) {
         let h = self.head();
         let r = self.generator.borrow_mut().next();
-        let f = match *self.front.get(h) {
+        let f = match *self.front.get(h).unwrap() {
             None => {
                 let n = self.new_node(r, v, None, None);
                 self.back.insert(r, Some(n.clone()));
@@ -134,10 +97,10 @@ impl<A: Clone> DList<A> {
         self.history.push(r);
     }
 
-    fn push_back(&mut self, v: A) {
+    pub fn push_back(&mut self, v: A) {
         let h = self.head();
         let r = self.generator.borrow_mut().next();
-        let b = match *self.back.get(h) {
+        let b = match *self.back.get(h).unwrap() {
             None => {
                 let n = self.new_node(r, v, None, None);
                 self.front.insert(r, Some(n.clone()));
@@ -155,35 +118,41 @@ impl<A: Clone> DList<A> {
         self.history.push(r);
     }
 
-    pub fn push_array(&mut self, vs: &[A]) {
-        for v in vs.iter() {
-            self.push(v.clone());
-        }
-    }
-
-    pub fn push_array_back(&mut self, vs: &[A]) {
-        for v in vs.iter() {
-            self.push_back(v.clone());
-        }
-    }
-
     pub fn iter(&self, r: Revision) -> DLIter<A> {
-        DLIter{revision: r, link: self.front.get(r)}
+        DLIter{revision: r, link: self.front.get(r).unwrap()}
     }
 }
 
-struct Box<A>(A);
+impl<A> Recall for DList<A> {
+    fn undo(&mut self, n: uint) -> Revision {
+        assert!(self.head as int - n as int >= 0);
 
-impl<'a, A: Clone + Eq + Show> Iterator<&'a A> for DLIter<'a, A> {
+        self.head -= n;
+        self.head()
+    }
+
+    fn redo(&mut self, n: uint) -> Revision {
+        assert!(self.head + n + 1 <= self.history.len());
+
+        self.head += n;
+        self.head()
+    }
+}
+
+impl<'a, A: Eq + Show> Iterator<&'a A> for DLIter<'a, A> {
     fn next(&mut self) -> Option<&'a A> {
         let r = self.revision;
         match *self.link {
             None        => None,
             Some(ref l) => {
-                let Box(&ref n) = Box(l.borrow().next.get(r));
-                let Box(&ref v) = Box(l.borrow().value.get(r));
-                self.link = n;
-                Some(v)
+                match l.borrow().next.get(r) {
+                    None         => (),
+                    Some(&ref n) => self.link = n
+                };
+                match l.borrow().value.get(r) {
+                    None         => None,
+                    Some(&ref v) => Some(v)
+                }
             }
         }
     }
@@ -193,16 +162,8 @@ impl<'a, A: Clone + Eq + Show> Iterator<&'a A> for DLIter<'a, A> {
     }
 }
 
-macro_rules! dlist(
-    ($($x:expr),*) => ({
-        let mut x = DList::new();
-        x.push_array_back(&[$($x),*]);
-        x
-    });
-);
-
 #[cfg(test)]
-fn assert<A: Show + Clone + Eq>(mut xs: DLIter<A>, es: &[A]) {
+fn assert<A: Show + Eq>(mut xs: DLIter<A>, es: &[A]) {
     let mut i = 0;
     for x in xs {
         assert_eq!(*x, es[i]);
@@ -226,10 +187,12 @@ fn push() {
 #[test]
 fn undo_redo() {
     let mut xs: DList<int> = DList::new();
-    xs.push_array_back(&[2, 1]);
+    xs.push_back(2);
+    xs.push_back(1);
     xs.undo(2);
     xs.redo(1);
-    xs.push_array_back(&[3, 4]);
+    xs.push_back(3);
+    xs.push_back(4);
 
     assert(xs.iter(xs.head()), &[2, 3, 4]);
 }

@@ -10,8 +10,8 @@ pub trait Persistent<T> {
 }
 
 pub trait Recall {
-    fn undo(&mut self) -> Revision;
-    fn redo(&mut self) -> Revision;
+    fn undo(&mut self, uint) -> Revision;
+    fn redo(&mut self, uint) -> Revision;
 }
 
-pub trait FullyPersistent<T> : Persistent<T> + Recall {}
+pub trait FullyPersistent<T>: Persistent<T> + Recall {}

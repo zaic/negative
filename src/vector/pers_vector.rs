@@ -33,11 +33,11 @@ impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
 }
 
 impl<T> Recall for PersVector<T> {
-    fn undo(&mut self) -> Revision {
+    fn undo(&mut self, _: uint) -> Revision {
         panic!("Not implemented");
     }
 
-    fn redo(&mut self) -> Revision {
+    fn redo(&mut self, _: uint) -> Revision {
         panic!("Not implemented");
     }
 }

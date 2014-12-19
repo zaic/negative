@@ -44,18 +44,18 @@ impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
 }
 
 impl<K: Clone + Ord, V: Clone> Recall for PersMap<K, V> {
-    fn undo(&mut self) -> Revision {
-        assert!(self.head_revision_id > 0u);
+    fn undo(&mut self, n: uint) -> Revision {
+        assert!(self.head_revision_id as int - n as int >= 0);
 
-        self.head_revision_id -= 1;
+        self.head_revision_id -= n;
         self.root = self.head();
         self.line_history[self.head_revision_id]
     }
 
-    fn redo(&mut self) -> Revision {
-        assert!(self.head_revision_id + 1u < self.line_history.len());
+    fn redo(&mut self, n: uint) -> Revision {
+        assert!(self.head_revision_id + n + 1 <= self.line_history.len());
 
-        self.head_revision_id += 1;
+        self.head_revision_id += n;
         self.root = self.head();
         self.line_history[self.head_revision_id]
     }
@@ -204,12 +204,12 @@ fn map_undoredo_test() {
     assert_eq!(map.contains_key(&2), true);
     assert_eq!(map.contains_key(&1), true);
 
-    map.undo();
+    map.undo(1);
     println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), false);
     assert_eq!(map.contains_key(&1), true);
 
-    map.redo();
+    map.redo(1);
     println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), true);
     assert_eq!(map.contains_key(&1), true);
@@ -233,7 +233,7 @@ fn map_full_persistent_test() {
     map.insert(2, 2.0);
     map.insert(3, 3.0);
     let mut three = map.clone();
-    map.undo();
+    map.undo(1);
     map.insert(4, 4.0);
     three.insert(5, 5.0);
     let mut five = three.clone();
