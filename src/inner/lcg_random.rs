@@ -1,19 +1,13 @@
-/*
- *  This file contains implementation of the linear congruential generator.
- *
- *  This generator guarantee that period is 2^31.
- *  Parameters A, C, and M are taken from wiki article:
- *  https://en.wikipedia.org/wiki/Linear_congruential_generator
- */
-
-
+//! This file contains implementation of the linear congruential generator.
+//! 
+//! This generator guarantee that period is 2^31.
+//! Parameters A, C, and M are taken from wiki article:
+//! https://en.wikipedia.org/wiki/Linear_congruential_generator
 
 pub trait LCG {
     fn new() -> Self;
     fn next(&mut self) -> int;
 }
-
-
 
 pub struct CoolLCG {
     x: u64,
@@ -33,15 +27,15 @@ impl LCG for CoolLCG {
     }
 }
 
+impl Copy for CoolLCG {}
+
 #[test]
-fn lcg_random_test() {
+fn cool_lcg() {
     let mut rnd : CoolLCG = LCG::new();
     let one = rnd.next();
     let two = rnd.next();
     assert!(one != two);
 }
-
-
 
 pub struct DebugLCG {
     x: u64,
@@ -58,8 +52,10 @@ impl LCG for DebugLCG {
     }
 }
 
+impl Copy for DebugLCG {}
+
 #[test]
-fn lcg_debug_test() {
+fn debug_lcg() {
     let mut rnd : DebugLCG = LCG::new();
     for i in range(1i, 10) {
         assert!(rnd.next() == i);

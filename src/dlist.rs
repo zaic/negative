@@ -4,7 +4,7 @@ use std::collections::HashMap as HMap;
 use std::vec::Vec;
 use std::fmt::Show;
 use inner::persistent::Revision;
-use inner::versioned_fat_node::VersionTree as VTree;
+use inner::fat_field::RevisionTree as VTree;
 use inner::lcg_random::LCG;
 use inner::lcg_random::CoolLCG;
 
@@ -109,7 +109,7 @@ impl<A: Clone> DList<A> {
     }
 
     pub fn redo(&mut self, n: uint) {
-        assert!(self.head + n + 1 <= self.history.len())
+        assert!(self.head + n + 1 <= self.history.len());
         self.head += n;
     }
 
@@ -199,7 +199,7 @@ macro_rules! dlist(
         x.push_array_back(&[$($x),*]);
         x
     });
-)
+);
 
 #[cfg(test)]
 fn assert<A: Show + Clone + Eq>(mut xs: DLIter<A>, es: &[A]) {

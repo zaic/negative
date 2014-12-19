@@ -30,7 +30,6 @@ impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
         assert!(revision <= self.shared_data.borrow().last_revision);
         assert!(self.shared_data.borrow().roots.contains_key(&revision));
 
-        //MapRevision{rev: revision, root: self.roots[revision].clone()}
         PersMap{line_history: vec![revision],
                 head_revision_id: 0,
                 root: self.shared_data.borrow().roots[revision].clone(),
@@ -62,7 +61,7 @@ impl<K: Clone + Ord, V: Clone> Recall for PersMap<K, V> {
     }
 }
 
-impl<K: Clone + Ord, V: Clone> FullPersistent<PersMap<K, V>> for PersMap<K, V> { }
+impl<K: Clone + Ord, V: Clone> FullyPersistent<PersMap<K, V>> for PersMap<K, V> {}
 
 impl<K: Ord + Clone, V: Clone> Clone for PersMap<K, V> {
     fn clone(&self) -> PersMap<K, V> { // TODO Self?
@@ -134,7 +133,7 @@ impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
         loop {
             let next_node = match node.deref() {
                 &Kuchevo::Nil => return false,
-                &Kuchevo::Node(ref nkey, ref _value, _priority, ref left, ref right) =>
+                &Kuchevo::Node(ref nkey, _, _, ref left, ref right) =>
                     if *nkey < *key {
                         right.clone()
                     } else if *nkey > *key {

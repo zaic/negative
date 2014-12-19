@@ -14,6 +14,4 @@ pub trait Recall {
     fn redo(&mut self) -> Revision;
 }
 
-pub trait FullPersistent<T> : Persistent<T> + Recall {
-
-}
+pub trait FullyPersistent<T> : Persistent<T> + Recall {}
