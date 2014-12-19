@@ -207,6 +207,7 @@ macro_rules! dlist(
     });
 )
 
+#[cfg(test)]
 fn assert<A: Show + Clone + Eq>(mut xs: DLIter<A>, es: &[A]) {
     let mut i = 0;
     for x in xs {

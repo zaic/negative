@@ -3,12 +3,10 @@ use std::collections::tree_map::TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
 use inner::kuchevo::Kuchevo;
-use inner::lcg_random::LCG;
-use inner::lcg_random::CoolLCG;
-use inner::persistent::Persistent;
+use inner::lcg_random::*;
+use inner::persistent::*;
 use inner::versioned_fat_node::VersionTree;
 use map::map_iterator::MapIterator;
-//use map::map_revision::MapRevision;
 
 pub type Node<K, V> = Rc<Kuchevo<K, V>>;
 pub type SharedData<K, V> = Rc<RefCell<SharedMapData<K, V>>>;
@@ -46,7 +44,9 @@ impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
 
         self.line_history[self.head_revision_id]
     }
+}
 
+impl<K: Clone + Ord, V: Clone> Recall for PersMap<K, V> {
     fn undo(&mut self) -> i64 {
         assert!(self.head_revision_id > 0u);
 
@@ -63,6 +63,8 @@ impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
         self.line_history[self.head_revision_id]
     }
 }
+
+impl<K: Clone + Ord, V: Clone> FullPersistent<PersMap<K, V>> for PersMap<K, V> { }
 
 impl<K: Ord + Clone, V: Clone> Clone for PersMap<K, V> {
     fn clone(&self) -> PersMap<K, V> { // TODO Self?

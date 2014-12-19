@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::vec::Vec;
 use inner::fat_node::FatNode;
-use inner::persistent::Persistent;
+use inner::persistent::*;
 use vector::vector_revision::VectorRevision;
 
 
@@ -30,7 +30,9 @@ impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
     fn current_revision_id(&self) -> i64 {
         self.rev
     }
+}
 
+impl<T> Recall for PersVector<T> {
     fn undo(&mut self) -> i64 {
         panic!("Not implemented");
     }
@@ -39,6 +41,8 @@ impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
         panic!("Not implemented");
     }
 }
+
+impl<T> FullPersistent<VectorRevision<T>> for PersVector<T> { }
 
 impl<T> PersVector<T> {
     pub fn new() -> PersVector<T> {
