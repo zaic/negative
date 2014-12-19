@@ -134,7 +134,7 @@ impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
         loop {
             let next_node = match node.deref() {
                 &Kuchevo::Nil => return false,
-                &Kuchevo::Node(ref nkey, ref value, priority, ref left, ref right) =>
+                &Kuchevo::Node(ref nkey, ref _value, _priority, ref left, ref right) =>
                     if *nkey < *key {
                         right.clone()
                     } else if *nkey > *key {
@@ -187,8 +187,8 @@ fn map_iterator_test() {
         println!("tree: {}", cur_state.root);
         for it in cur_state.iter() {
             println!("wow: {}", it);
-            let (a, b) = it;
-            assert_eq!(a, &expected_value);
+            let (key, _) = it;
+            assert_eq!(key, &expected_value);
             expected_value += 1;
         }
         assert_eq!(expected_value, q);

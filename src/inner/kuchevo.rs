@@ -186,7 +186,7 @@ fn build_tree_from_habr() -> (Rc<Kuchevo<int, ()>>, String, String, String) {
     let a = Kuchevo::<int, ()>::new(0, (), 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let b = Kuchevo::new(3, (), 3, Kuchevo::new_empty(), Kuchevo::new_empty());
     let c = Kuchevo::new(2, (), 4, a.clone(), b.clone());
-    let ccc = Kuchevo::new(2, (), 4, a.clone(), b.clone());
+    let _ccc = Kuchevo::new(2, (), 4, a.clone(), b.clone());
     let c_str = "(k=2,p=4,((k=0,p=3,(x,x)),(k=3,p=3,(x,x))))";
     assert_eq!(c_str, format!("{}", c).as_slice());
 
@@ -227,7 +227,7 @@ fn split_to_three_kuchest() {
 
 #[test]
 fn split_and_merge_kuchest() {
-    let (root, full_tree_str, left_tree_str, right_tree_str) = build_tree_from_habr();
+    let (root, full_tree_str, _left_tree_str, _right_tree_str) = build_tree_from_habr();
 
     let (less, equal, greater) = root.split(&8);
     assert_eq!("x", format!("{}", equal).as_slice());
