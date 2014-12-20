@@ -124,18 +124,26 @@ impl<A> DList<A> {
 }
 
 impl<A> Recall for DList<A> {
-    fn undo(&mut self, n: uint) -> Revision {
+    fn undo_ntimes(&mut self, n: int) -> Revision {
         assert!(self.head as int - n as int >= 0);
 
-        self.head -= n;
+        self.head -= n as uint;
         self.head()
     }
 
-    fn redo(&mut self, n: uint) -> Revision {
-        assert!(self.head + n + 1 <= self.history.len());
+    fn redo_ntimes(&mut self, n: int) -> Revision {
+        assert!(self.head + (n as uint) + 1u <= self.history.len());
 
-        self.head += n;
+        self.head += n as uint;
         self.head()
+    }
+
+    fn undo(&mut self) -> Revision {
+        self.undo_ntimes(1)
+    }
+
+    fn redo(&mut self) -> Revision {
+        self.undo_ntimes(1)
     }
 }
 
@@ -180,7 +188,7 @@ fn push() {
     xs.push_back(4);
 
     assert(xs.iter(xs.head()), &[3, 1, 2, 4]);
-    xs.undo(2);
+    xs.undo_ntimes(2);
     assert(xs.iter(xs.head()), &[1, 2]);
 }
 
@@ -189,8 +197,8 @@ fn undo_redo() {
     let mut xs: DList<int> = DList::new();
     xs.push_back(2);
     xs.push_back(1);
-    xs.undo(2);
-    xs.redo(1);
+    xs.undo_ntimes(2);
+    xs.redo_ntimes(1);
     xs.push_back(3);
     xs.push_back(4);
 

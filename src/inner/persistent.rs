@@ -16,20 +16,20 @@ pub trait Recall {
     fn undo_ntimes(&mut self, times: int) -> Revision {
         assert!(times > 0);
 
-        while times > 1) {
-            undo();
+        for _ in range(1, times) {
+            self.undo();
         }
-        undo()
+        self.undo()
     }
 
     fn redo_ntimes(&mut self, times: int) -> Revision {
         assert!(times > 0);
 
-        while (times > 1) {
-            redo();
+        for _ in range(1, times) {
+            self.redo();
         }
-        redo()
+        self.redo()
     }
 }
 
-pub trait FullyPersistent<T>: Persistent<T> + Recall {}
+pub trait FullyPersistent<T>: Persistent<T> + Recall { }

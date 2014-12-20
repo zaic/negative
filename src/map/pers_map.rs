@@ -204,12 +204,12 @@ fn map_undoredo_test() {
     assert_eq!(map.contains_key(&2), true);
     assert_eq!(map.contains_key(&1), true);
 
-    map.undo(1);
+    map.undo();
     println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), false);
     assert_eq!(map.contains_key(&1), true);
 
-    map.redo(1);
+    map.redo();
     println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), true);
     assert_eq!(map.contains_key(&1), true);
@@ -233,7 +233,7 @@ fn map_full_persistent_test() {
     map.insert(2, 2.0);
     map.insert(3, 3.0);
     let mut three = map.clone();
-    map.undo(1);
+    map.undo();
     map.insert(4, 4.0);
     three.insert(5, 5.0);
     let mut five = three.clone();
