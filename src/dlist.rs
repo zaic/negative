@@ -117,6 +117,13 @@ impl<A> DList<A> {
     }
 
     pub fn iter_mut(&mut self, r: Revision) -> MutItems<A> {
+        let mut i: uint = 0;
+        for &e in self.tree.borrow().history().iter() {
+            if e == r {
+                *self.head_index.borrow_mut() = i;
+            }
+            i += 1;
+        }
         MutItems {
             revision:   r,
             head_index: self.head_index.clone(),
@@ -223,15 +230,23 @@ fn undo_redo() {
 #[test]
 fn iter_mut() {
     let mut xs: DList<int> = DList::new();
+
     xs.push_back(1);
     xs.push_back(2);
     xs.push_back(3);
     xs.push_back(4);
+    let a = xs.head();
 
-    let h = xs.head();
-    for x in xs.iter_mut(h) {
+    xs.push_back(5);
+    xs.push_back(6);
+    let b = xs.head();
+
+    for x in xs.iter_mut(a) {
         x.map(|x: &int| -> int {*x * *x});
     }
+    let c = xs.head();
 
-    assert(xs.iter(xs.head()), &[1, 4, 9, 16]);
+    assert(xs.iter(a), &[1, 2, 3, 4]);
+    assert(xs.iter(b), &[1, 2, 3, 4, 5, 6]);
+    assert(xs.iter(c), &[1, 4, 9, 16]);
 }

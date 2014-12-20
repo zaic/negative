@@ -122,14 +122,15 @@ impl<A> FatField<A> {
     pub fn get_fat_ref<'a>(&self, r: Revision, i: Rc<RefCell<uint>>) -> Option<FatRef<'a, A>> {
         for c in self.tree.borrow().parent_branch(r).iter() {
             match self.values.borrow().get(c) {
-                None         => continue,
+                None             => continue,
                 Some(&ref value) => {
-                    return Some(FatRef{
+                    let f = FatRef {
                         value:      value,
                         head_index: i,
                         values:     self.values.clone(),
                         tree:       self.tree.clone()
-                    })
+                    };
+                    return Some(f)
                 }
             }
         }
