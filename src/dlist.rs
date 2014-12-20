@@ -1,10 +1,8 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::vec::Vec;
 use std::fmt::Show;
 use inner::persistent::*;
 use inner::fat_field::*;
-use inner::lcg_random::*;
 
 type Link<A> = Option<Rc<RefCell<Node<A>>>>;
 
@@ -15,42 +13,39 @@ struct Node<A> {
 }
 
 pub struct DList<A> {
-    generator: Rc<RefCell<CoolLCG>>,
-    tree:      Rc<RefCell<RevisionTree>>,
-    front:     FatField<Link<A>>,
-    back:      FatField<Link<A>>,
-    head:      uint,
-    history:   Vec<Revision>
+    head_index: Rc<RefCell<uint>>,
+    tree:       Rc<RefCell<RevisionTree>>,
+    front:      FatField<Link<A>>,
+    back:       FatField<Link<A>>
 }
 
-pub struct DLIter<'a, A: 'a> {
+pub struct Items<'a, A: 'a> {
     revision: Revision,
     link:     &'a Link<A>
 }
 
+pub struct MutItems<'a, A: 'a> {
+    revision:   Revision,
+    head_index: Rc<RefCell<uint>>,
+    link:       &'a Link<A>
+}
+
 impl<A> DList<A> {
     pub fn new() -> DList<A> {
-        let generator: Rc<RefCell<CoolLCG>> = Rc::new(RefCell::new(LCG::new()));
-
-        let root = generator.borrow_mut().next();
-        let history = vec!(root);
-
-        let head = 0;
-        let tree = Rc::new(RefCell::new(RevisionTree::new(root)));
-
+        let tree = Rc::new(RefCell::new(RevisionTree::new()));
         let mut front = FatField::new(tree.clone());
         let mut back = FatField::new(tree.clone());
+        let head_index = Rc::new(RefCell::new(0));
+        let head = tree.borrow().root();
 
-        front.insert(root, None);
-        back.insert(root, None);
+        front.insert(head, None);
+        back.insert(head, None);
 
         DList {
-            generator: generator,
-            tree:      tree,
-            front:     front,
-            back:      back,
-            head:      head,
-            history:   history
+            head_index: head_index,
+            tree:       tree,
+            front:      front,
+            back:       back
         }
     }
 
@@ -73,12 +68,12 @@ impl<A> DList<A> {
     }
 
     pub fn head(&self) -> Revision {
-        self.history[self.head]
+        self.tree.borrow().history()[*self.head_index.borrow()]
     }
 
     pub fn push(&mut self, v: A) {
         let h = self.head();
-        let r = self.generator.borrow_mut().next();
+        let r = self.tree.borrow_mut().fork(h);
         let f = match *self.front.get(h).unwrap() {
             None => {
                 let n = self.new_node(r, v, None, None);
@@ -92,14 +87,12 @@ impl<A> DList<A> {
             }
         };
         self.front.insert(r, Some(f.clone()));
-        self.tree.borrow_mut().insert(r, h);
-        self.head = self.history.len();
-        self.history.push(r);
+        *self.head_index.borrow_mut() = self.tree.borrow().last_index();
     }
 
     pub fn push_back(&mut self, v: A) {
         let h = self.head();
-        let r = self.generator.borrow_mut().next();
+        let r = self.tree.borrow_mut().fork(h);
         let b = match *self.back.get(h).unwrap() {
             None => {
                 let n = self.new_node(r, v, None, None);
@@ -113,28 +106,39 @@ impl<A> DList<A> {
             }
         };
         self.back.insert(r, Some(b.clone()));
-        self.tree.borrow_mut().insert(r, h);
-        self.head = self.history.len();
-        self.history.push(r);
+        *self.head_index.borrow_mut() = self.tree.borrow().last_index();
     }
 
-    pub fn iter(&self, r: Revision) -> DLIter<A> {
-        DLIter{revision: r, link: self.front.get(r).unwrap()}
+    pub fn iter(&self, r: Revision) -> Items<A> {
+        Items {
+            revision: r,
+            link:     self.front.get(r).unwrap()
+        }
+    }
+
+    pub fn iter_mut(&mut self, r: Revision) -> MutItems<A> {
+        MutItems {
+            revision:   r,
+            head_index: self.head_index.clone(),
+            link:       self.front.get(r).unwrap()
+        }
     }
 }
 
 impl<A> Recall for DList<A> {
     fn undo_ntimes(&mut self, n: int) -> Revision {
-        assert!(self.head as int - n as int >= 0);
+        let h: int = *self.head_index.borrow() as int;
+        assert!(h - n >= 0);
 
-        self.head -= n as uint;
+        *self.head_index.borrow_mut() -= n as uint;
         self.head()
     }
 
     fn redo_ntimes(&mut self, n: int) -> Revision {
-        assert!(self.head + (n as uint) + 1u <= self.history.len());
+        let h: int = *self.head_index.borrow() as int;
+        assert!(h + n <= self.tree.borrow().last_index() as int);
 
-        self.head += n as uint;
+        *self.head_index.borrow_mut() += n as uint;
         self.head()
     }
 
@@ -147,7 +151,7 @@ impl<A> Recall for DList<A> {
     }
 }
 
-impl<'a, A: Eq + Show> Iterator<&'a A> for DLIter<'a, A> {
+impl<'a, A: Eq + Show> Iterator<&'a A> for Items<'a, A> {
     fn next(&mut self) -> Option<&'a A> {
         let r = self.revision;
         match *self.link {
@@ -164,8 +168,25 @@ impl<'a, A: Eq + Show> Iterator<&'a A> for DLIter<'a, A> {
     }
 }
 
+impl<'a, A: Eq + Show> Iterator<FatRef<'a, A>> for MutItems<'a, A> {
+    fn next(&mut self) -> Option<FatRef<'a, A>> {
+        let r = self.revision;
+        match *self.link {
+            None        => None,
+            Some(ref l) => {
+                self.link = l.borrow().next.get(r).unwrap();
+                l.borrow().value.get_fat_ref(r, self.head_index.clone())
+            }
+        }
+    }
+
+    fn size_hint(&self) -> (uint, Option<uint>) {
+        (0, None)
+    }
+}
+
 #[cfg(test)]
-fn assert<A: Show + Eq>(mut xs: DLIter<A>, es: &[A]) {
+fn assert<A: Show + Eq>(mut xs: Items<A>, es: &[A]) {
     let mut i = 0;
     for x in xs {
         assert_eq!(*x, es[i]);
@@ -197,4 +218,20 @@ fn undo_redo() {
     xs.push_back(4);
 
     assert(xs.iter(xs.head()), &[2, 3, 4]);
+}
+
+#[test]
+fn iter_mut() {
+    let mut xs: DList<int> = DList::new();
+    xs.push_back(1);
+    xs.push_back(2);
+    xs.push_back(3);
+    xs.push_back(4);
+
+    let h = xs.head();
+    for x in xs.iter_mut(h) {
+        x.map(|x: &int| -> int {*x * *x});
+    }
+
+    assert(xs.iter(xs.head()), &[1, 4, 9, 16]);
 }
