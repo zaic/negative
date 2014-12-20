@@ -42,7 +42,7 @@ impl<T> Recall for PersVector<T> {
     }
 }
 
-impl<T> FullPersistent<VectorRevision<T>> for PersVector<T> { }
+impl<T> FullyPersistent<VectorRevision<T>> for PersVector<T> { }
 
 impl<T> PersVector<T> {
     pub fn new() -> PersVector<T> {

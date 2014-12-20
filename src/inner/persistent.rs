@@ -12,8 +12,24 @@ pub trait Persistent<T> {
 pub trait Recall {
     fn undo(&mut self) -> Revision;
     fn redo(&mut self) -> Revision;
+
+    fn undo_ntimes(&mut self, times: int) -> Revision {
+        assert!(times > 0);
+
+        while times > 1) {
+            undo();
+        }
+        undo()
+    }
+
+    fn redo_ntimes(&mut self, times: int) -> Revision {
+        assert!(times > 0);
+
+        while (times > 1) {
+            redo();
+        }
+        redo()
+    }
 }
 
-pub trait FullPersistent<T> : Persistent<T> + Recall {
-
-}
+pub trait FullyPersistent<T>: Persistent<T> + Recall {}

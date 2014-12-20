@@ -30,7 +30,6 @@ impl<K: Ord + Clone, V: Clone> Persistent<PersMap<K, V>> for PersMap<K, V> {
         assert!(revision <= self.shared_data.borrow().last_revision);
         assert!(self.shared_data.borrow().roots.contains_key(&revision));
 
-        //MapRevision{rev: revision, root: self.roots[revision].clone()}
         PersMap{line_history: vec![revision],
                 head_revision_id: 0,
                 root: self.shared_data.borrow().roots[revision].clone(),
@@ -62,7 +61,7 @@ impl<K: Clone + Ord, V: Clone> Recall for PersMap<K, V> {
     }
 }
 
-impl<K: Clone + Ord, V: Clone> FullPersistent<PersMap<K, V>> for PersMap<K, V> { }
+impl<K: Clone + Ord, V: Clone> FullyPersistent<PersMap<K, V>> for PersMap<K, V> { }
 
 impl<K: Ord + Clone, V: Clone> Clone for PersMap<K, V> {
     fn clone(&self) -> PersMap<K, V> { // TODO Self?
@@ -205,12 +204,12 @@ fn map_undoredo_test() {
     assert_eq!(map.contains_key(&2), true);
     assert_eq!(map.contains_key(&1), true);
 
-    map.undo();
+    map.undo(1);
     println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), false);
     assert_eq!(map.contains_key(&1), true);
 
-    map.redo();
+    map.redo(1);
     println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), true);
     assert_eq!(map.contains_key(&1), true);
@@ -234,7 +233,7 @@ fn map_full_persistent_test() {
     map.insert(2, 2.0);
     map.insert(3, 3.0);
     let mut three = map.clone();
-    map.undo();
+    map.undo(1);
     map.insert(4, 4.0);
     three.insert(5, 5.0);
     let mut five = three.clone();
