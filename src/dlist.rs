@@ -153,14 +153,8 @@ impl<'a, A: Eq + Show> Iterator<&'a A> for DLIter<'a, A> {
         match *self.link {
             None        => None,
             Some(ref l) => {
-                match l.borrow().next.get(r) {
-                    None         => (),
-                    Some(&ref n) => self.link = n
-                };
-                match l.borrow().value.get(r) {
-                    None         => None,
-                    Some(&ref v) => Some(v)
-                }
+                self.link = l.borrow().next.get(r).unwrap();
+                l.borrow().value.get(r)
             }
         }
     }

@@ -61,7 +61,7 @@ impl<A> FatField<A> {
         }
     }
 
-    pub fn get(&self, r: Revision) -> Option<&A> {
+    pub fn get<'a>(&self, r: Revision) -> Option<&'a A> {
         for c in self.revision_tree.borrow().parent_branch(r).iter() {
             match self.values.get(c) {
                 None         => continue,
