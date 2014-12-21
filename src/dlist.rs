@@ -20,12 +20,8 @@ pub struct DList<A> {
 }
 
 pub struct Items<'a, A: 'a> {
-    revision: Revision,
-    link:     &'a Link<A>
-}
-
-pub struct MutItems<'a, A: 'a> {
     revision:   Revision,
+    head:       Rc<RefCell<Revision>>,
     head_index: Rc<RefCell<uint>>,
     link:       &'a Link<A>
 }
@@ -49,19 +45,19 @@ impl<A> DList<A> {
         }
     }
 
-    fn new_node(&self, r: Revision, v: A, p: Link<A>, n: Link<A>) -> Rc<RefCell<Node<A>>> {
-        let mut vs = FatField::new(self.tree.clone());
-        let mut ps = FatField::new(self.tree.clone());
-        let mut ns = FatField::new(self.tree.clone());
+    fn new_node(&self, r: Revision, _v: A, _p: Link<A>, _n: Link<A>) -> Rc<RefCell<Node<A>>> {
+        let mut v = FatField::new(self.tree.clone());
+        let mut p = FatField::new(self.tree.clone());
+        let mut n = FatField::new(self.tree.clone());
 
-        vs.insert(r, v);
-        ps.insert(r, p);
-        ns.insert(r, n);
+        v.insert(r, _v);
+        p.insert(r, _p);
+        n.insert(r, _n);
 
         let n = Node {
-            value: vs,
-            prev:  ps,
-            next:  ns
+            value: v,
+            prev:  p,
+            next:  n
         };
 
         Rc::new(RefCell::new(n))
@@ -111,21 +107,8 @@ impl<A> DList<A> {
 
     pub fn iter(&self, r: Revision) -> Items<A> {
         Items {
-            revision: r,
-            link:     self.front.get(r).unwrap()
-        }
-    }
-
-    pub fn iter_mut(&mut self, r: Revision) -> MutItems<A> {
-        let mut i: uint = 0;
-        for &e in self.tree.borrow().history().iter() {
-            if e == r {
-                *self.head_index.borrow_mut() = i;
-            }
-            i += 1;
-        }
-        MutItems {
             revision:   r,
+            head:       Rc::new(RefCell::new(r)),
             head_index: self.head_index.clone(),
             link:       self.front.get(r).unwrap()
         }
@@ -158,31 +141,14 @@ impl<A> Recall for DList<A> {
     }
 }
 
-impl<'a, A: Eq + Show> Iterator<&'a A> for Items<'a, A> {
-    fn next(&mut self) -> Option<&'a A> {
-        let r = self.revision;
-        match *self.link {
-            None        => None,
-            Some(ref l) => {
-                self.link = l.borrow().next.get(r).unwrap();
-                l.borrow().value.get(r)
-            }
-        }
-    }
-
-    fn size_hint(&self) -> (uint, Option<uint>) {
-        (0, None)
-    }
-}
-
-impl<'a, A: Eq + Show> Iterator<FatRef<'a, A>> for MutItems<'a, A> {
+impl<'a, A: Eq + Show> Iterator<FatRef<'a, A>> for Items<'a, A> {
     fn next(&mut self) -> Option<FatRef<'a, A>> {
         let r = self.revision;
         match *self.link {
             None        => None,
             Some(ref l) => {
                 self.link = l.borrow().next.get(r).unwrap();
-                l.borrow().value.get_fat_ref(r, self.head_index.clone())
+                l.borrow().value.get_fat_ref(self.head.clone(), self.head_index.clone())
             }
         }
     }
@@ -228,7 +194,7 @@ fn undo_redo() {
 }
 
 #[test]
-fn iter_mut() {
+fn iter() {
     let mut xs: DList<int> = DList::new();
 
     xs.push_back(1);
@@ -241,12 +207,18 @@ fn iter_mut() {
     xs.push_back(6);
     let b = xs.head();
 
-    for x in xs.iter_mut(a) {
-        x.map(|x: &int| -> int {*x * *x});
+    for x in xs.iter(a) {
+        x.map(|x| 5 - *x);
     }
     let c = xs.head();
 
+    for x in xs.iter(a).filter(|x| **x > 2) {
+        x.map(|x| 5 - *x);
+    }
+    let d = xs.head();
+
     assert(xs.iter(a), &[1, 2, 3, 4]);
     assert(xs.iter(b), &[1, 2, 3, 4, 5, 6]);
-    assert(xs.iter(c), &[1, 4, 9, 16]);
+    assert(xs.iter(c), &[4, 3, 2, 1]);
+    assert(xs.iter(d), &[1, 2, 2, 1]);
 }

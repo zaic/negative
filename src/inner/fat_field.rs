@@ -81,6 +81,7 @@ pub struct FatField<A> {
 
 pub struct FatRef<'a, A: 'a> {
     value:      &'a A,
+    head:       Rc<RefCell<Revision>>,
     head_index: Rc<RefCell<uint>>,
     values:     Rc<RefCell<HashMap<Revision, A>>>,
     tree:       Rc<RefCell<RevisionTree>>
@@ -88,8 +89,9 @@ pub struct FatRef<'a, A: 'a> {
 
 impl<'a, A: 'a> FatRef<'a, A> {
     pub fn map(&self, f: |&'a A| -> A) {
-        let h = self.tree.borrow().history()[*self.head_index.borrow()];
+        let h = *self.head.borrow();
         let r = self.tree.borrow_mut().fork(h);
+        *self.head.borrow_mut() = r;
         *self.head_index.borrow_mut() = self.tree.borrow().last_index();
         self.values.borrow_mut().insert(r, f(self.value));
     }
@@ -119,18 +121,19 @@ impl<A> FatField<A> {
         None
     }
 
-    pub fn get_fat_ref<'a>(&self, r: Revision, i: Rc<RefCell<uint>>) -> Option<FatRef<'a, A>> {
-        for c in self.tree.borrow().parent_branch(r).iter() {
-            match self.values.borrow().get(c) {
+    pub fn get_fat_ref<'a>(&self, h: Rc<RefCell<Revision>>, hi: Rc<RefCell<uint>>) -> Option<FatRef<'a, A>> {
+        for r in self.tree.borrow().parent_branch(*h.borrow()).iter() {
+            match self.values.borrow().get(r) {
                 None             => continue,
-                Some(&ref value) => {
-                    let f = FatRef {
-                        value:      value,
-                        head_index: i,
+                Some(&ref v) => {
+                    let r = FatRef {
+                        value:      v,
+                        head:       h,
+                        head_index: hi,
                         values:     self.values.clone(),
                         tree:       self.tree.clone()
                     };
-                    return Some(f)
+                    return Some(r)
                 }
             }
         }
