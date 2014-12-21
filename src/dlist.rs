@@ -1,79 +1,74 @@
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::*;
 use std::fmt::Show;
+use std::collections::HashMap;
 use inner::persistent::*;
-use inner::fat_field::*;
+use inner::revision_tree::*;
 
 type Link<A> = Option<Rc<RefCell<Node<A>>>>;
 
 struct Node<A> {
-    value: FatField<A>,
-    prev:  FatField<Link<A>>,
-    next:  FatField<Link<A>>
+    value: Field<A>,
+    prev:  Field<Link<A>>,
+    next:  Field<Link<A>>,
 }
 
 pub struct DList<A> {
-    head_index: Rc<RefCell<uint>>,
-    tree:       Rc<RefCell<RevisionTree>>,
-    front:      FatField<Link<A>>,
-    back:       FatField<Link<A>>
-}
-
-pub struct Items<'a, A: 'a> {
-    revision:   Revision,
-    head:       Rc<RefCell<Revision>>,
-    head_index: Rc<RefCell<uint>>,
-    link:       &'a Link<A>
+    index: Rc<RefCell<uint>>,
+    front: Rc<RefCell<Field<Link<A>>>>,
+    back:  Rc<RefCell<Field<Link<A>>>>,
+    tree:  Rc<RefCell<Tree>>
 }
 
 impl<A> DList<A> {
     pub fn new() -> DList<A> {
-        let tree = Rc::new(RefCell::new(RevisionTree::new()));
-        let mut front = FatField::new(tree.clone());
-        let mut back = FatField::new(tree.clone());
-        let head_index = Rc::new(RefCell::new(0));
+        let tree = Rc::new(RefCell::new(Tree::new()));
         let head = tree.borrow().root();
+
+        let index = Rc::new(RefCell::new(0));
+        let mut front = HashMap::new();
+        let mut back = HashMap::new();
 
         front.insert(head, None);
         back.insert(head, None);
 
         DList {
-            head_index: head_index,
-            tree:       tree,
-            front:      front,
-            back:       back
+            index: index,
+            front: Rc::new(RefCell::new(front)),
+            back:  Rc::new(RefCell::new(back)),
+            tree:  tree
         }
     }
 
-    fn new_node(&self, r: Revision, _v: A, _p: Link<A>, _n: Link<A>) -> Rc<RefCell<Node<A>>> {
-        let mut v = FatField::new(self.tree.clone());
-        let mut p = FatField::new(self.tree.clone());
-        let mut n = FatField::new(self.tree.clone());
+    fn new_node(&self, r: Revision, v: A, p: Link<A>, n: Link<A>) -> Rc<RefCell<Node<A>>> {
+        let mut value = HashMap::new();
+        let mut prev = HashMap::new();
+        let mut next = HashMap::new();
 
-        v.insert(r, _v);
-        p.insert(r, _p);
-        n.insert(r, _n);
+        value.insert(r, v);
+        prev.insert(r, p);
+        next.insert(r, n);
 
-        let n = Node {
-            value: v,
-            prev:  p,
-            next:  n
+        let node = Node {
+            value: value,
+            prev:  prev,
+            next:  next
         };
 
-        Rc::new(RefCell::new(n))
+        Rc::new(RefCell::new(node))
     }
 
     pub fn head(&self) -> Revision {
-        self.tree.borrow().history()[*self.head_index.borrow()]
+        self.tree.borrow().revision(*self.index.borrow())
     }
 
     pub fn push(&mut self, v: A) {
         let h = self.head();
         let r = self.tree.borrow_mut().fork(h);
-        let f = match *self.front.get(h).unwrap() {
+        let f = match *self.tree.borrow()._get(self.front.borrow(), h).unwrap() {
             None => {
                 let n = self.new_node(r, v, None, None);
-                self.back.insert(r, Some(n.clone()));
+                self.back.borrow_mut().insert(r, Some(n.clone()));
                 n
             },
             Some(ref f) => {
@@ -82,17 +77,17 @@ impl<A> DList<A> {
                 n
             }
         };
-        self.front.insert(r, Some(f.clone()));
-        *self.head_index.borrow_mut() = self.tree.borrow().last_index();
+        self.front.borrow_mut().insert(r, Some(f.clone()));
+        *self.index.borrow_mut() = self.tree.borrow().last_index();
     }
 
     pub fn push_back(&mut self, v: A) {
         let h = self.head();
         let r = self.tree.borrow_mut().fork(h);
-        let b = match *self.back.get(h).unwrap() {
+        let b = match *self.tree.borrow()._get(self.back.borrow(), h).unwrap() {
             None => {
                 let n = self.new_node(r, v, None, None);
-                self.front.insert(r, Some(n.clone()));
+                self.front.borrow_mut().insert(r, Some(n.clone()));
                 n
             },
             Some(ref b) => {
@@ -101,54 +96,116 @@ impl<A> DList<A> {
                 n
             }
         };
-        self.back.insert(r, Some(b.clone()));
-        *self.head_index.borrow_mut() = self.tree.borrow().last_index();
+        self.back.borrow_mut().insert(r, Some(b.clone()));
+        *self.index.borrow_mut() = self.tree.borrow().last_index();
     }
 
     pub fn iter(&self, r: Revision) -> Items<A> {
+        let link = self.tree.borrow()._get(self.front.borrow(), r).unwrap();
         Items {
-            revision:   r,
-            head:       Rc::new(RefCell::new(r)),
-            head_index: self.head_index.clone(),
-            link:       self.front.get(r).unwrap()
+            revision: r,
+            link:     link,
+
+            head:  Rc::new(RefCell::new(r)),
+            index: self.index.clone(),
+            tree:  self.tree.clone(),
+
+            front: self.front.clone(),
+            back:  self.back.clone()
         }
     }
 }
 
 impl<A> Recall for DList<A> {
-    fn undo_ntimes(&mut self, n: int) -> Revision {
-        let h: int = *self.head_index.borrow() as int;
-        assert!(h - n >= 0);
-
-        *self.head_index.borrow_mut() -= n as uint;
-        self.head()
-    }
-
-    fn redo_ntimes(&mut self, n: int) -> Revision {
-        let h: int = *self.head_index.borrow() as int;
-        assert!(h + n <= self.tree.borrow().last_index() as int);
-
-        *self.head_index.borrow_mut() += n as uint;
-        self.head()
-    }
-
     fn undo(&mut self) -> Revision {
-        self.undo_ntimes(1)
+        assert!(*self.index.borrow() > 0);
+
+        *self.index.borrow_mut() -= 1;
+        self.head()
     }
 
     fn redo(&mut self) -> Revision {
-        self.undo_ntimes(1)
+        assert!(*self.index.borrow() < self.tree.borrow().last_index());
+
+        *self.index.borrow_mut() += 1;
+        self.head()
     }
 }
 
-impl<'a, A: Eq + Show> Iterator<FatRef<'a, A>> for Items<'a, A> {
-    fn next(&mut self) -> Option<FatRef<'a, A>> {
-        let r = self.revision;
+pub struct Items<'a, A: 'a> {
+    revision: Revision,
+    link:     &'a Link<A>,
+
+    head:  Rc<RefCell<Revision>>,
+    index: Rc<RefCell<uint>>,
+    tree:  Rc<RefCell<Tree>>,
+
+    front: Rc<RefCell<Field<Link<A>>>>,
+    back:  Rc<RefCell<Field<Link<A>>>>
+}
+
+pub struct NodeRef<'a, A: 'a> {
+    node:  Rc<RefCell<Node<A>>>,
+
+    head:  Rc<RefCell<Revision>>,
+    index: Rc<RefCell<uint>>,
+    tree:  Rc<RefCell<Tree>>,
+
+    front: Rc<RefCell<Field<Link<A>>>>,
+    back:  Rc<RefCell<Field<Link<A>>>>
+}
+
+impl<'a, A: 'a> NodeRef<'a, A> {
+    pub fn map(&self, f: |&'a A| -> A) {
+        let h = *self.head.borrow();
+        let r = self.tree.borrow_mut().fork(h);
+        *self.head.borrow_mut() = r;
+        *self.index.borrow_mut() = self.tree.borrow().last_index();
+        let v = f(self.value());
+        self.node.borrow_mut().value.insert(r, v);
+    }
+
+    pub fn remove(&self) {
+        panic!("not yet implemented");
+    }
+
+    pub fn insert_before(&self) {
+        panic!("not yet implemented");
+    }
+
+    pub fn insert_after(&self) {
+        panic!("not yet implemented");
+    }
+    
+    pub fn value(&self) -> &'a A {
+        self.tree.borrow().get(&self.node.borrow().value, *self.head.borrow()).unwrap()
+    }
+}
+
+impl<'a, A: 'a> Deref<A> for NodeRef<'a, A> {
+    fn deref(&self) -> &A {
+        self.value()
+    }
+}
+
+impl<'a, A: Eq + Show> Iterator<NodeRef<'a, A>> for Items<'a, A> {
+    fn next(&mut self) -> Option<NodeRef<'a, A>> {
+        let revision = self.revision;
         match *self.link {
             None        => None,
-            Some(ref l) => {
-                self.link = l.borrow().next.get(r).unwrap();
-                l.borrow().value.get_fat_ref(self.head.clone(), self.head_index.clone())
+            Some(ref link) => {
+                self.link = self.tree.borrow().get(&link.borrow().next, revision).unwrap();
+                let node_ref = NodeRef {
+                    node:  link.clone(),
+
+                    head:  self.head.clone(),
+                    index: self.index.clone(),
+                    tree:  self.tree.clone(),
+
+                    front: self.front.clone(),
+                    back:  self.back.clone()
+                };
+                Some(node_ref)
             }
         }
     }
@@ -170,55 +227,61 @@ fn assert<A: Show + Eq>(mut xs: Items<A>, es: &[A]) {
 #[test]
 fn push() {
     let mut xs: DList<int> = DList::new();
+    xs.push(2);
     xs.push(1);
-    xs.push_back(2);
-    xs.push(3);
-    xs.push_back(4);
+    let a = xs.head();
 
-    assert(xs.iter(xs.head()), &[3, 1, 2, 4]);
-    xs.undo_ntimes(2);
-    assert(xs.iter(xs.head()), &[1, 2]);
+    xs.push_back(3);
+    xs.push_back(4);
+    let b = xs.head();
+
+    assert(xs.iter(a), &[1, 2]);
+    assert(xs.iter(b), &[1, 2, 3, 4]);
 }
 
 #[test]
 fn undo_redo() {
     let mut xs: DList<int> = DList::new();
-    xs.push_back(2);
-    xs.push_back(1);
-    xs.undo_ntimes(2);
-    xs.redo_ntimes(1);
-    xs.push_back(3);
-    xs.push_back(4);
+    xs.push(4);
+    xs.push(3);
+    xs.push(2);
+    xs.push(1);
+    let a = xs.head();
 
-    assert(xs.iter(xs.head()), &[2, 3, 4]);
+    let b = xs.undo_ntimes(2);
+    let c = xs.redo_ntimes(2);
+
+    assert(xs.iter(a), &[1, 2, 3, 4]);
+    assert(xs.iter(b), &[3, 4]);
+    assert(xs.iter(c), &[1, 2, 3, 4]);
 }
 
 #[test]
 fn iter() {
     let mut xs: DList<int> = DList::new();
 
-    xs.push_back(1);
-    xs.push_back(2);
-    xs.push_back(3);
-    xs.push_back(4);
+    xs.push(6);
+    xs.push(5);
+    xs.push(4);
+    xs.push(3);
     let a = xs.head();
 
-    xs.push_back(5);
-    xs.push_back(6);
+    xs.push(2);
+    xs.push(1);
     let b = xs.head();
 
     for x in xs.iter(a) {
-        x.map(|x| 5 - *x);
+        x.map(|_| 0);
     }
     let c = xs.head();
 
-    for x in xs.iter(a).filter(|x| **x > 2) {
-        x.map(|x| 5 - *x);
+    for x in xs.iter(a).filter(|x| **x > 4) {
+        x.map(|_| 0);
     }
     let d = xs.head();
 
-    assert(xs.iter(a), &[1, 2, 3, 4]);
+    assert(xs.iter(a), &[3, 4, 5, 6]);
     assert(xs.iter(b), &[1, 2, 3, 4, 5, 6]);
-    assert(xs.iter(c), &[4, 3, 2, 1]);
-    assert(xs.iter(d), &[1, 2, 2, 1]);
+    assert(xs.iter(c), &[0, 0, 0, 0]);
+    assert(xs.iter(d), &[3, 4, 0, 0]);
 }
