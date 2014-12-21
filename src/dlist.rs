@@ -132,6 +132,7 @@ impl<A> Recall for DList<A> {
     }
 }
 
+#[allow(dead_code)]
 pub struct Items<'a, A: 'a> {
     revision: Revision,
     link:     &'a Link<A>,
@@ -144,6 +145,7 @@ pub struct Items<'a, A: 'a> {
     back:  Rc<RefCell<Field<Link<A>>>>
 }
 
+#[allow(dead_code)]
 pub struct NodeRef<'a, A: 'a> {
     node:  Rc<RefCell<Node<A>>>,
 

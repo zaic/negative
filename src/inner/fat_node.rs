@@ -5,11 +5,9 @@
  *  O(lg(N)) time and inserting new revision with O(lg(N)) time.
  */
 
-use std::collections::tree_map::TreeMap;
+use std::collections::BTreeMap as TreeMap;
 use std::rc::Rc;
 use inner::persistent::Revision;
-
-
 
 pub struct FatNode<T> {
     history: TreeMap<Revision, Option<Rc<T>>>
@@ -23,28 +21,25 @@ impl<T> FatNode<T> {
     }
 
     pub fn value<'a>(&'a self, revision: Revision) -> Option<Rc<T>> {
-        let it = self.history.lower_bound(&(-revision)).next();
-        match it {
-            None => return None,
-            Some((_, ref value)) =>
-                match *value {
-                    &None => return None,
-                    &Some(ref rct) => return Some(rct.clone()),
+        match self.history.iter().rposition(|(&k, _)| k <= revision) {
+            None    => None,
+            Some(i) =>
+                match *self.history.iter().skip(i).next().unwrap().1 {
+                    None          => None,
+                    Some(ref rct) => Some(rct.clone()),
                 }
-        };
+        }
     }
 
     pub fn add_value(&mut self, revision: Revision, value: Option<T>) {
         match value {
             None =>
-                self.history.insert(-revision, None),
+                self.history.insert(revision, None),
             Some(real_value) =>
-                self.history.insert(-revision, Some(Rc::new(real_value)))
+                self.history.insert(revision, Some(Rc::new(real_value)))
         };
     }
 }
-
-
 
 #[test]
 fn fatnode_init_first_test() {

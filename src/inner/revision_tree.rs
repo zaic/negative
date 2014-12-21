@@ -1,4 +1,4 @@
-use std::collections::TreeMap;
+use std::collections::BTreeMap as TreeMap;
 use std::collections::HashMap;
 use std::vec::Vec;
 use inner::persistent::Revision;

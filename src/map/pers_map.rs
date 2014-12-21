@@ -3,7 +3,7 @@ use inner::lcg_random::*;
 use inner::persistent::*;
 use map::map_iterator::MapIterator;
 use std::cell::RefCell;
-use std::collections::tree_map::TreeMap;
+use std::collections::BTreeMap as TreeMap;
 use std::rc::Rc;
 use std::vec::Vec;
 
