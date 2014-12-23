@@ -79,8 +79,9 @@ impl Transactioned for TransactionLCG {
         // compare sefl.stm_clock and clock from read_log
     }
 
-    fn commit(&mut self) {
+    fn commit(&mut self, lambda) {
         // get self.x from write_log and store it
+        // update stm_clock
     }
 
     fn unroll(&self) {

@@ -12,6 +12,6 @@ pub trait Transactioned {
     // fn modify();
 
     fn check(&self) -> bool;
-    fn commit(&mut self);
+    fn commit(&mut self, lambda); // быть может, вообще выпилить эту и следующую функцию
     fn unroll(&self);
 }
