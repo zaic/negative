@@ -4,6 +4,15 @@
 //! Parameters A, C, and M are taken from wiki article:
 //! https://en.wikipedia.org/wiki/Linear_congruential_generator
 
+extern crate core;
+use std::thread_local::OsStaticKey;
+use std::thread_local::scoped::OS_INIT;
+use core::mem;
+
+use inner::stm::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+
 pub trait LCG {
     fn new() -> Self;
     fn next(&mut self) -> int;
@@ -71,15 +80,17 @@ pub struct TransactionLCG {
 
     stm_clock: int,
     stm_uid: int,
-    /* rwlock */
+    stm_guard: RWLock<int>,
+    stm_tls: Option<Rc<RefCell<TLS>>>,
 }
 
 impl Transactioned for TransactionLCG {
     fn check(&self) -> bool {
         // compare sefl.stm_clock and clock from read_log
+        true
     }
 
-    fn commit(&mut self, lambda) {
+    fn commit(&mut self, ld: |&Transactioned| -> int ) {
         // get self.x from write_log and store it
         // update stm_clock
     }
@@ -92,13 +103,14 @@ impl Transactioned for TransactionLCG {
 impl LCG for TransactionLCG {
     fn new() -> TransactionLCG {
         TransactionLCG {
-            inner_lcg: CoolLCG::new(),
+            x: 1807,
             stm_clock: -1,
             stm_uid: 0, // TODO get global uid
-        }
+            stm_guard: RWLock::new(0i),
+            stm_tls: None}
     }
 
-    fn next() -> int {
+    fn next(&mut self) -> int {
         // 0. lock rwlock
         //
         // 1. verify global clock
@@ -123,5 +135,55 @@ impl LCG for TransactionLCG {
         //   read_log is a map: stm_uid -> ClockType
         //   write_log is a map: stm_uid -> lamda (?)
         //   one more map: stm_uid -> &Transactioned
+        
+        // 0
+        let read_lock = self.stm_guard.read();
+        let mut tls = self.stm_tls.unwrap().deref().borrow_mut();
+
+        // 1
+        let current_struct_time = self.stm_clock;
+        if current_struct_time != tls.initial_time { // TODO use weak condition
+            // TODO fail transaction
+        } else {
+            // it's ok
+        }
+        tls.log_read[self.stm_uid] = current_struct_time; // TODO use global clock (?)
+
+        // 2
+        let x = if tls.log_write.contains_key(&self.stm_uid) {
+            tls.log_write[self.stm_uid]
+        } else {
+            self.x
+        };
+        
+        // 3
+        let a = 1103515245u64;
+        let c = 12345u64;
+        let m = 0x80000000u64;
+        let res = (a * x + c) % m;
+
+        // 4
+        tls.log_write.insert(self.stm_uid, res);
+
+        // 5
+        // auto
+
+        return res as int;
+    }
+}
+
+#[test]
+fn stm_random_test() {
+    let mut testmap = BTreeMap::<int, int>::new();
+    unsafe {
+        let mut testp: *mut u8 = mem::transmute(&mut testmap);
+        KEY.set(testp as *mut u8);
+    }
+    testmap.insert(10, 5);
+    unsafe {
+        let mut same_map_pointer : *mut BTreeMap<int, int> = mem::transmute(KEY.get() as *mut BTreeMap<int, int>);
+        let mut same_map = &*same_map_pointer;
+        println!("{}", same_map.len());
+        println!("{}", same_map[10]);
     }
 }
