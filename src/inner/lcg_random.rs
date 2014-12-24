@@ -75,8 +75,6 @@ fn debug_lcg() {
 
 
 
-static TRANSACTION: OsStaticKey = OS_INIT;
-
 pub struct TransactionLCG {
     x: u64,
 
