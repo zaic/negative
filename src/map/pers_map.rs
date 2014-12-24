@@ -64,14 +64,13 @@ impl<K: Clone + Ord, V: Clone> Recall for PersMap<K, V> {
 impl<K: Clone + Ord, V: Clone> FullyPersistent<PersMap<K, V>> for PersMap<K, V> { }
 
 impl<K: Ord + Clone, V: Clone> Clone for PersMap<K, V> {
-    fn clone(&self) -> PersMap<K, V> { // TODO Self?
+    fn clone(&self) -> Self {
         PersMap{line_history: self.line_history.clone(),
                 head_revision_id: self.head_revision_id,
                 root: self.root.clone(),
                 shared_data: self.shared_data.clone()}
     }
 }
-// TODO operator=
 
 impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
     pub fn new() -> PersMap<K, V> {

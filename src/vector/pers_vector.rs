@@ -17,9 +17,8 @@ impl<T> Persistent<VectorRevision<T>> for PersVector<T> {
     fn get_by_revision(&self, revision : Revision) -> VectorRevision<T> {
         assert!(revision <= self.rev);
         let mut result_vector = Vec::<Rc<T>>::new();
-        // TODO use iterator ;)
-        for i in range(0u, self.ary.len()) {
-            match self.ary[i].value(revision) {
+        for it in self.ary.iter() {
+            match it.value(revision) {
                 Some(ref rct) => result_vector.push(rct.clone()),
                 None      => break,
             };
