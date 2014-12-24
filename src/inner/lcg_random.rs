@@ -7,7 +7,7 @@
 extern crate core;
 use std::thread_local::OsStaticKey;
 use std::thread_local::scoped::OS_INIT;
-use core::mem;
+use self::core::mem;
 
 use inner::stm::*;
 use std::cell::RefCell;
@@ -75,16 +75,18 @@ fn debug_lcg() {
 
 
 
+static TRANSACTION: OsStaticKey = OS_INIT;
+
 pub struct TransactionLCG {
     x: u64,
 
     stm_clock: int,
     stm_uid: int,
     stm_guard: RWLock<int>,
-    stm_tls: Option<Rc<RefCell<TLS>>>,
 }
 
-impl Transactioned for TransactionLCG {
+/*
+impl<T> Transactioned for TransactionLCG {
     fn check(&self) -> bool {
         // compare sefl.stm_clock and clock from read_log
         true
@@ -99,6 +101,7 @@ impl Transactioned for TransactionLCG {
         // hmm... do nothing
     }
 }
+*/
 
 impl LCG for TransactionLCG {
     fn new() -> TransactionLCG {
@@ -106,8 +109,7 @@ impl LCG for TransactionLCG {
             x: 1807,
             stm_clock: -1,
             stm_uid: 0, // TODO get global uid
-            stm_guard: RWLock::new(0i),
-            stm_tls: None}
+            stm_guard: RWLock::new(0i) }
     }
 
     fn next(&mut self) -> int {
@@ -135,23 +137,28 @@ impl LCG for TransactionLCG {
         //   read_log is a map: stm_uid -> ClockType
         //   write_log is a map: stm_uid -> lamda (?)
         //   one more map: stm_uid -> &Transactioned
+
+        let mut transaction = unsafe {
+            let mut transaction_pointer : *mut Transaction = mem::transmute(TRANSACTION.get() as *mut Transaction);
+            &mut *transaction_pointer
+        };
         
         // 0
         let read_lock = self.stm_guard.read();
-        let mut tls = self.stm_tls.unwrap().deref().borrow_mut();
 
         // 1
         let current_struct_time = self.stm_clock;
-        if current_struct_time != tls.initial_time { // TODO use weak condition
+        if current_struct_time != transaction.initial_time { // TODO use weak condition
             // TODO fail transaction
         } else {
             // it's ok
+            //transaction.log_read[self.stm_uid] = current_struct_time; // TODO use global clock (?)
         }
-        tls.log_read[self.stm_uid] = current_struct_time; // TODO use global clock (?)
+        transaction.log_read.insert(self.stm_uid, current_struct_time); // TODO use global clock (?)
 
         // 2
-        let x = if tls.log_write.contains_key(&self.stm_uid) {
-            tls.log_write[self.stm_uid]
+        let x = if transaction.log_write.contains_key(&self.stm_uid) {
+            transaction.log_write[self.stm_uid]
         } else {
             self.x
         };
@@ -163,7 +170,7 @@ impl LCG for TransactionLCG {
         let res = (a * x + c) % m;
 
         // 4
-        tls.log_write.insert(self.stm_uid, res);
+        transaction.log_write.insert(self.stm_uid, res);
 
         // 5
         // auto
@@ -174,16 +181,48 @@ impl LCG for TransactionLCG {
 
 #[test]
 fn stm_random_test() {
-    let mut testmap = BTreeMap::<int, int>::new();
-    unsafe {
-        let mut testp: *mut u8 = mem::transmute(&mut testmap);
-        KEY.set(testp as *mut u8);
+    let mut cool_lcg: CoolLCG = LCG::new();
+    let y0 = cool_lcg.next();
+    let y1 = cool_lcg.next();
+    println!("y0 = {} and y1 = {}", y0, y1);
+
+    let mut lcg: TransactionLCG = LCG::new();
+    {
+        let mut transaction = Transaction::new();
+        unsafe {
+            let mut transaction_pointer: *mut u8 = mem::transmute(&mut transaction);
+            TRANSACTION.set(transaction_pointer as *mut u8);
+        }
+        let x0 = lcg.next();
+        let x1 = lcg.next();
+        println!("x0 = {} and x1 = {}", x0, x1);
+        assert_eq!(x0, y0);
+        assert_eq!(x1, y1);
     }
-    testmap.insert(10, 5);
-    unsafe {
-        let mut same_map_pointer : *mut BTreeMap<int, int> = mem::transmute(KEY.get() as *mut BTreeMap<int, int>);
-        let mut same_map = &*same_map_pointer;
-        println!("{}", same_map.len());
-        println!("{}", same_map[10]);
+    {
+        let mut transaction = Transaction::new();
+        unsafe {
+            let mut transaction_pointer: *mut u8 = mem::transmute(&mut transaction);
+            TRANSACTION.set(transaction_pointer as *mut u8);
+        }
+        let x0 = lcg.next();
+        let x1 = lcg.next();
+        println!("x0 = {} and x1 = {}", x0, x1);
+        assert_eq!(x0, y0);
+        assert_eq!(x1, y1);
+        transaction.commit();
     }
+    {
+        let mut transaction = Transaction::new();
+        unsafe {
+            let mut transaction_pointer: *mut u8 = mem::transmute(&mut transaction);
+            TRANSACTION.set(transaction_pointer as *mut u8);
+        }
+        let x0 = lcg.next();
+        let x1 = lcg.next();
+        println!("x0 = {} and x1 = {}", x0, x1);
+        assert!(x0 != y0);
+        assert!(x1 != y1);
+    }
+    //assert!(false);
 }
