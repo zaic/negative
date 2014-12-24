@@ -76,38 +76,12 @@ fn debug_lcg() {
 
 
 pub struct TransactionLCG {
-    x: u64,
-
-    stm_clock: int,
-    stm_uid: int,
-    stm_guard: RWLock<int>,
+    x: Rc<RefCell<Box<Transactioned<u64>>>>
 }
-
-/*
-impl<T> Transactioned for TransactionLCG {
-    fn check(&self) -> bool {
-        // compare sefl.stm_clock and clock from read_log
-        true
-    }
-
-    fn commit(&mut self, ld: |&Transactioned| -> int ) {
-        // get self.x from write_log and store it
-        // update stm_clock
-    }
-
-    fn unroll(&self) {
-        // hmm... do nothing
-    }
-}
-*/
 
 impl LCG for TransactionLCG {
     fn new() -> TransactionLCG {
-        TransactionLCG {
-            x: 1807,
-            stm_clock: -1,
-            stm_uid: 0, // TODO get global uid
-            stm_guard: RWLock::new(0i) }
+        TransactionLCG { x: Rc::new(RefCell::new(box Transactioned::new(1807u64))) }
     }
 
     fn next(&mut self) -> int {
