@@ -245,3 +245,33 @@ fn vec_undoredo_test() {
     assert_eq!(vector[0], 1807);
     assert_eq!(vector[1], 2609);
 }
+
+#[test]
+fn vec_fully_persistent_test() {
+    let mut vector = PersVector::<int>::new();
+
+    vector.push(1807);
+    let rev_a = vector.push(2609);
+    assert_eq!(vector.len(), 2u);
+    assert_eq!(vector[0], 1807);
+    assert_eq!(vector[1], 2609);
+
+    vector.undo();
+    assert_eq!(vector.len(), 1u);
+    assert_eq!(vector[0], 1807);
+
+    let rev_b = vector.push(1008);
+    assert_eq!(vector.len(), 2u);
+    assert_eq!(vector[0], 1807);
+    assert_eq!(vector[1], 1008);
+
+    let vector_a = vector.get_by_revision(rev_a);
+    assert_eq!(vector_a.len(), 2u);
+    assert_eq!(vector_a[0], 1807);
+    assert_eq!(vector_a[1], 2609);
+
+    let vector_b = vector.get_by_revision(rev_b);
+    assert_eq!(vector_b.len(), 2u);
+    assert_eq!(vector_b[0], 1807);
+    assert_eq!(vector_b[1], 1008);
+}

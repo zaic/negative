@@ -199,23 +199,20 @@ fn map_undoredo_test() {
 
     map.insert(1, "one");
     map.insert(2, "two");
-    println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), true);
     assert_eq!(map.contains_key(&1), true);
 
     map.undo();
-    println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), false);
     assert_eq!(map.contains_key(&1), true);
 
     map.redo();
-    println!("tree: {}", map.root);
     assert_eq!(map.contains_key(&2), true);
     assert_eq!(map.contains_key(&1), true);
 }
 
 #[test]
-fn map_full_persistent_test() {
+fn map_fully_persistent_test() {
     let mut map = PersMap::<int, f32>::new();
     /*
      * My favourite tree:
