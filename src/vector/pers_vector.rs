@@ -1,9 +1,10 @@
+use std::iter::repeat;
 use inner::persistent::*;
 use inner::versioned_fat_node::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::vec::Vec;
 use std::slice::Iter;
+use std::vec::Vec;
 
 pub type SharedData<T> = Rc<RefCell<VectorSharedData<T>>>;
 
@@ -167,11 +168,31 @@ impl<T: Clone> PersVector<T> {
     pub fn iter<'a>(&'a self) -> Iter<'a, Rc<T>> {
         self.ary.iter()
     }
+
+    pub fn truncate(&mut self, len: uint) {
+        while self.len() > len {
+            self.pop();
+        }
+    }
+
+    pub fn resize(&mut self, new_len: uint, value: T) {
+        self.truncate(new_len);
+        let old_len = self.len();
+        self.extend(repeat(value).take(new_len - old_len));
+    }
 }
 
-impl<T> Index<uint, T> for PersVector<T> {
+impl<T: Clone> Index<uint, T> for PersVector<T> {
     fn index<'a>(&'a self, id: &uint) -> &'a T {
         self.ary[*id].deref()
+    }
+}
+
+impl<T: Clone> Extend<T> for PersVector<T> {
+    fn extend<I: Iterator<T>>(&mut self, mut iterator: I) {
+        for element in iterator {
+            self.push(element);
+        }
     }
 }
 
@@ -229,6 +250,18 @@ fn vec_modify_test() {
 
     assert_eq!(pre_modify[7], 7);
     assert_eq!(post_modify[7], 1807);
+}
+
+#[test]
+fn resize_test() {
+    let mut vec_ext = PersVector::<int>::new();
+    vec_ext.push(1);
+    vec_ext.push(2);
+    assert_eq!(vec_ext.len(), 2);
+    vec_ext.resize(5, 3);
+    assert_eq!(vec_ext.len(), 5);
+    vec_ext.truncate(3);
+    assert_eq!(vec_ext.len(), 3);
 }
 
 #[test]
