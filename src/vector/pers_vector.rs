@@ -3,6 +3,7 @@ use inner::versioned_fat_node::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::vec::Vec;
+use std::slice::Iter;
 
 pub type SharedData<T> = Rc<RefCell<VectorSharedData<T>>>;
 
@@ -162,6 +163,10 @@ impl<T: Clone> PersVector<T> {
 
         new_rev
     }
+
+    pub fn iter<'a>(&'a self) -> Iter<'a, Rc<T>> {
+        self.ary.iter()
+    }
 }
 
 impl<T> Index<uint, T> for PersVector<T> {
@@ -274,4 +279,19 @@ fn vec_fully_persistent_test() {
     assert_eq!(vector_b.len(), 2u);
     assert_eq!(vector_b[0], 1807);
     assert_eq!(vector_b[1], 1008);
+}
+
+#[test]
+fn vec_iterator_test() {
+    let mut vector = PersVector::<int>::new();
+
+    for i in range(1i, 10) {
+        vector.push(i);
+    }
+    let mut expected_value = 1i;
+    for i in vector.iter() {
+        assert_eq!(i.deref(), &expected_value);
+        expected_value += 1;
+    }
+    assert_eq!(expected_value, 10);
 }
