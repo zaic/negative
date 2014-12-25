@@ -1,3 +1,7 @@
+//! Persistent vector.
+//!
+//! Vector provides O(1) access to array element by indexes, push to the end and pop from the end.
+
 use std::iter::repeat;
 use inner::persistent::*;
 use inner::versioned_fat_node::*;
@@ -18,6 +22,72 @@ pub struct VectorSharedData<T> {
     len:           uint,
 }
 
+/// Persistent vector implementation.
+///
+/// # Exmaples
+///
+/// Persistent vector supports all basic functions as ```std::Vec``` from the standart rust library.
+///
+/// ```
+/// let mut vec: PersVector<int> = PersVector::new();
+/// vec.push(1);
+/// assert_eq!(vec[0], 1);
+/// vec.pop();
+/// assert_eq!(vec.len(), 0);
+/// ```
+///
+/// But ```PersVector``` can give access to any previous revision:
+///
+/// ```
+/// let mut v = PersVector::<int>::new();
+/// v.push(1807);
+/// let rev_before = v.push(2609);
+/// v.pop();
+/// v.push(1008);
+///
+/// let vec_before = v.get_by_revision(rev_before);
+/// assert_eq!(vec_before[1], 2609);
+/// ```
+///
+/// Undo-Redo is also supporting:
+///
+/// ```
+/// let mut vector = PersVector::<int>::new();
+///
+/// vector.push(1807);
+/// vector.push(2609);
+/// assert_eq!(vector.len(), 2u);
+///
+/// vector.undo();
+/// assert_eq!(vector.len(), 1u);
+///
+/// vector.redo();
+/// assert_eq!(vector.len(), 2u);
+/// assert_eq!(vector[0], 1807);
+/// assert_eq!(vector[1], 2609);
+/// ```
+///
+/// Moreover ```PersVector``` is fully persistent:
+///
+/// ```
+/// let mut vector = PersVector::<int>::new();
+/// 
+/// vector.push(1807);
+/// let rev_a = vector.push(2609);
+/// vector.undo();
+/// let rev_b = vector.push(1008);
+/// 
+/// let vector_a = vector.get_by_revision(rev_a);
+/// assert_eq!(vector_a.len(), 2u);
+/// assert_eq!(vector_a[0], 1807);
+/// assert_eq!(vector_a[1], 2609);
+/// 
+/// let vector_b = vector.get_by_revision(rev_b);
+/// assert_eq!(vector_b.len(), 2u);
+/// assert_eq!(vector_b[0], 1807);
+/// assert_eq!(vector_b[1], 1008);
+/// ```
+///
 pub struct PersVector<T> {
     line_history:     Vec<Revision>, // branch of history for undo-redo
     head_revision_id: uint, // id of the current verision in line_history vector
@@ -83,6 +153,14 @@ impl<T: Clone> Recall for PersVector<T> {
 impl<T: Clone> FullyPersistent<PersVector<T>> for PersVector<T> { }
 
 impl<T: Clone> PersVector<T> {
+    /// Constructs a new, empty persistent vector.
+    ///
+    /// Created vector have one root revision.
+    ///
+    /// # Examples
+    /// ```
+    /// let mut pvec: PersVector<int> = PersVector::new();
+    /// ```
     pub fn new() -> PersVector<T> {
         let vtree = Rc::new(RefCell::new(VersionTree::new(1)));
         let shdata = Rc::new(RefCell::new(VectorSharedData::<T>{last_revision: 1,
@@ -97,14 +175,42 @@ impl<T: Clone> PersVector<T> {
 
 
 
+    /// Returns the number of elements in the current vector revision.
+    ///
+    /// # Exmaples
+    /// ```
+    /// let mut vec = PersVector::<int>::new();
+    /// vec.push(1);
+    /// vec.push(2);
+    /// assert_eq!(vec.len(), 2);
+    /// ```
     pub fn len(&self) -> uint {
         self.ary.len()
     }
 
+    /// Returns ```true``` if the vector contains no elements and false otherwise.
+    ///
+    /// # Exmaples
+    /// ```
+    /// let mut vec = PersVector::<int>::new();
+    /// assert!(vec.empty());
+    /// vec.push(1);
+    /// vec.push(2);
+    /// assert!(!vec.empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.ary.is_empty()
     }
 
+    /// Append an element to the end of the vector.
+    ///
+    /// Returns new revision id.
+    ///
+    /// # Exmaples
+    /// ```
+    /// let mut vec = PersVector::<&str>::new();
+    /// vec.push("pysch");
+    /// ```
     pub fn push(&mut self, value: T) -> Revision {
         let mut shdata = self.shared_data.deref().borrow_mut();
         let old_rev = self.current_revision_id();
@@ -129,6 +235,19 @@ impl<T: Clone> PersVector<T> {
         new_rev
     }
 
+    /// Remove an element from the end of the vector.
+    ///
+    /// Returns new revision id.
+    ///
+    /// # Panics
+    /// Panics if the vector is empty.
+    ///
+    /// # Exmaples
+    /// ```
+    /// let mut vec = PersVector::<&str>::new();
+    /// vec.push("ololo");
+    /// vec.pop();
+    /// ```
     pub fn pop(&mut self) -> Revision {
         assert!(self.ary.len() > 0);
         let mut shdata = self.shared_data.deref().borrow_mut();
@@ -150,6 +269,19 @@ impl<T: Clone> PersVector<T> {
         new_rev
     }
 
+    /// Modify element in the vectory by it index.
+    ///
+    /// Returns new revision id.
+    ///
+    /// # Panics
+    /// Panics if the index is out of bounds.
+    ///
+    /// # Exmaples
+    /// ```
+    /// let mut vec = PersVector::<&str>::new();
+    /// vec.push("ololo");
+    /// vec.modify(0, "pysch");
+    /// ```
     pub fn modify(&mut self, id: uint, value: T) -> Revision {
         assert!(id < self.ary.len());
         let mut shdata = self.shared_data.deref().borrow_mut();
@@ -169,16 +301,54 @@ impl<T: Clone> PersVector<T> {
         new_rev
     }
 
+    /// Returns random-access iterator to the current revision vector.
+    ///
+    /// # Exmaples
+    /// ```
+    /// let mut vector = PersVector::<int>::new();
+    /// ...
+    /// for i in vector.iter() {
+    ///     println!("one more vector element is {}", i.deref());
+    /// }
+    /// ```
     pub fn iter<'a>(&'a self) -> Iter<'a, Rc<T>> {
         self.ary.iter()
     }
 
+    /// Shorten the vector, dropping excess elements.
+    ///
+    /// If ```len``` is greater than the vector's current length, this has no effect.
+    ///
+    /// # Exmaples
+    /// ```
+    /// let mut vec_ext = PersVector::<int>::new();
+    /// vec_ext.push(1);
+    /// vec_ext.push(2);
+    /// assert_eq!(vec_ext.len(), 2);
+    /// vec_ext.resize(5, 3);
+    /// assert_eq!(vec_ext.len(), 5);
+    /// vec_ext.truncate(3);
+    /// assert_eq!(vec_ext.len(), 3);
+    /// ```
     pub fn truncate(&mut self, len: uint) {
         while self.len() > len {
             self.pop();
         }
     }
 
+    /// Resize the vector in-place.
+    ///
+    /// This function is equivalent to call ```truncate``` if the vector len is greater than
+    /// ```new_len``` or to call ```extend``` if the vector len is less than ```new_len```.
+    /// This function has no effect in case when ```new_len``` is equals to ```len()```.
+    ///
+    /// # Exmaples
+    /// ```
+    /// let mut vec_ext = PersVector::<int>::new();
+    /// vec_ext.push(1);
+    /// vec_ext.push(2);
+    /// assert_eq!(vec_ext.len(), 2);
+    /// ```
     pub fn resize(&mut self, new_len: uint, value: T) {
         self.truncate(new_len);
         let old_len = self.len();
