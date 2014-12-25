@@ -10,11 +10,11 @@ use std::rc::Rc;
 use std::slice::Iter;
 use std::vec::Vec;
 
-pub type SharedData<T> = Rc<RefCell<VectorSharedData<T>>>;
+type SharedData<T> = Rc<RefCell<VectorSharedData<T>>>;
 
 
 
-pub struct VectorSharedData<T> {
+struct VectorSharedData<T> {
     last_revision: Revision,
     version_tree:  Rc<RefCell<VersionTree>>,
 
@@ -95,62 +95,6 @@ pub struct PersVector<T> {
 
     shared_data:      SharedData<T>, // shared data between all revision
 }
-
-impl<T: Clone> Persistent<PersVector<T>> for PersVector<T> {
-    fn get_by_revision(&self, revision : Revision) -> PersVector<T> {
-        assert!(revision <= self.shared_data.deref().borrow().last_revision);
-
-        let mut result_vector = Vec::<Rc<T>>::new();
-        {
-            let origin_ary = &self.shared_data.deref().borrow().ary;
-            for it in origin_ary.iter() {
-                match it.value(revision).unwrap_or(None) {
-                    Some(ref rct) => result_vector.push(rct.clone()),
-                    None          => break,
-                };
-            }
-        }
-        PersVector{line_history: vec![revision],
-                   head_revision_id: 0,
-                   ary: result_vector,
-                   shared_data: self.shared_data.clone()}
-    }
-
-    fn current_revision_id(&self) -> Revision {
-        self.line_history[self.head_revision_id]
-    }
-}
-
-impl<T: Clone> Clone for PersVector<T> {
-    fn clone(&self) -> Self {
-        PersVector{line_history: self.line_history.clone(),
-                   head_revision_id: self.head_revision_id,
-                   ary: self.ary.clone(),
-                   shared_data: self.shared_data.clone() }
-    }
-}
-
-impl<T: Clone> Recall for PersVector<T> {
-    fn undo(&mut self) -> Revision {
-        assert!(self.head_revision_id > 0u);
-
-        self.head_revision_id -= 1;
-        let revision = self.line_history[self.head_revision_id];
-        self.ary = self.get_by_revision(revision).ary;
-        revision
-    }   
-
-    fn redo(&mut self) -> Revision {
-        assert!(self.head_revision_id + 1u < self.line_history.len());
-
-        self.head_revision_id += 1;
-        let revision = self.line_history[self.head_revision_id];
-        self.ary = self.get_by_revision(revision).ary;
-        revision
-    }
-}
-
-impl<T: Clone> FullyPersistent<PersVector<T>> for PersVector<T> { }
 
 impl<T: Clone> PersVector<T> {
     /// Constructs a new, empty persistent vector.
@@ -369,6 +313,63 @@ impl<T: Clone> Extend<T> for PersVector<T> {
         }
     }
 }
+
+impl<T: Clone> Persistent<PersVector<T>> for PersVector<T> {
+    fn get_by_revision(&self, revision : Revision) -> PersVector<T> {
+        assert!(revision <= self.shared_data.deref().borrow().last_revision);
+
+        let mut result_vector = Vec::<Rc<T>>::new();
+        {
+            let origin_ary = &self.shared_data.deref().borrow().ary;
+            for it in origin_ary.iter() {
+                match it.value(revision).unwrap_or(None) {
+                    Some(ref rct) => result_vector.push(rct.clone()),
+                    None          => break,
+                };
+            }
+        }
+        PersVector{line_history: vec![revision],
+                   head_revision_id: 0,
+                   ary: result_vector,
+                   shared_data: self.shared_data.clone()}
+    }
+
+    fn current_revision_id(&self) -> Revision {
+        self.line_history[self.head_revision_id]
+    }
+}
+
+impl<T: Clone> Recall for PersVector<T> {
+    fn undo(&mut self) -> Revision {
+        assert!(self.head_revision_id > 0u);
+
+        self.head_revision_id -= 1;
+        let revision = self.line_history[self.head_revision_id];
+        self.ary = self.get_by_revision(revision).ary;
+        revision
+    }   
+
+    fn redo(&mut self) -> Revision {
+        assert!(self.head_revision_id + 1u < self.line_history.len());
+
+        self.head_revision_id += 1;
+        let revision = self.line_history[self.head_revision_id];
+        self.ary = self.get_by_revision(revision).ary;
+        revision
+    }
+}
+
+impl<T: Clone> FullyPersistent<PersVector<T>> for PersVector<T> { }
+
+impl<T: Clone> Clone for PersVector<T> {
+    fn clone(&self) -> Self {
+        PersVector{line_history: self.line_history.clone(),
+                   head_revision_id: self.head_revision_id,
+                   ary: self.ary.clone(),
+                   shared_data: self.shared_data.clone() }
+    }
+}
+
 
 #[test]
 fn vec_test() {
