@@ -26,7 +26,6 @@ impl<'a, K: Clone + Ord + fmt::Show + 'a, V: Clone + fmt::Show + 'a> Iterator<(&
                 &Kuchevo::Nil => return None,
                 &Kuchevo::Node(ref key, ref value, _, ref left, ref right) => (Some((key, value)), left, right),
             };
-            //println!("res = {}, left = {}, right = {}, go_right = {}", res, left, right, self.direction);
 
             if self.direction == 0 && !left.is_nil() { // go to the left
                 self.branch.push((self.node, 1));

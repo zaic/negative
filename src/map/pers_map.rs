@@ -153,13 +153,9 @@ impl<K: Ord + Clone, V: Clone> PersMap<K, V> {
 #[test]
 fn map_insert_remove_test() {
     let mut m = PersMap::<int, ()>::new();
-    println!("1");
     m.insert(10, ());
-    println!("2");
     m.insert(20, ());
-    println!("3");
     m.insert(30, ());
-    println!("4");
     let map_before = m.current();
     m.remove(&30);
     let map_after  = m.current();
@@ -182,9 +178,7 @@ fn map_iterator_test() {
 
         let mut expected_value = 1i;
         let cur_state = map.clone();
-        println!("tree: {}", cur_state.root);
         for it in cur_state.iter() {
-            println!("wow: {}", it);
             let (key, _) = it;
             assert_eq!(key, &expected_value);
             expected_value += 1;

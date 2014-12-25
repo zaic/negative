@@ -50,8 +50,6 @@ impl VersionTree {
     }
 
     pub fn insert(&mut self, new_revision: Revision, old_revision: Revision) {
-        println!("{} refers to {}", new_revision, old_revision);
-        println!("tree = {}", self.parent);
         assert!(new_revision > 0);
         assert!(!self.parent.contains_key(&new_revision));
         assert!(old_revision == -1 || self.parent.contains_key(&old_revision));
