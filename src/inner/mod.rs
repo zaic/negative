@@ -3,3 +3,4 @@ pub mod kuchevo;
 pub mod lcg_random;
 pub mod persistent;
 pub mod revision_tree;
+pub mod versioned_fat_node;

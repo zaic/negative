@@ -4,19 +4,21 @@
  */
 
 use std::cell::RefCell as RCell;
-use std::collections::TreeMap as TMap;
+use std::collections::BTreeMap;
 use std::collections::HashMap as HMap;
 use std::rc::Rc;
 use std::vec::Vec;
 use inner::persistent::Revision;
 
 pub struct VersionTree {
-    parent: TMap<Revision, Revision>,
+    parent: BTreeMap<Revision, Revision>,
 }
 
 impl VersionTree {
     pub fn new(initial_revision: Revision) -> VersionTree {
-        let mut p = TMap::new();
+        assert!(initial_revision > 0);
+
+        let mut p = BTreeMap::new();
         p.insert(initial_revision, -1);
         VersionTree{parent: p}
     }
@@ -48,6 +50,8 @@ impl VersionTree {
     }
 
     pub fn insert(&mut self, new_revision: Revision, old_revision: Revision) {
+        println!("{} refers to {}", new_revision, old_revision);
+        println!("tree = {}", self.parent);
         assert!(new_revision > 0);
         assert!(!self.parent.contains_key(&new_revision));
         assert!(old_revision == -1 || self.parent.contains_key(&old_revision));
