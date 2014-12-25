@@ -101,6 +101,10 @@ impl<T: Clone> PersVector<T> {
         self.ary.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.ary.is_empty()
+    }
+
     pub fn push(&mut self, value: T) -> Revision {
         let mut shdata = self.shared_data.deref().borrow_mut();
         let old_rev = self.current_revision_id();
